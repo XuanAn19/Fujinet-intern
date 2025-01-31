@@ -1,0 +1,14 @@
+Login:
+CREATE TABLE MSTUSER (
+    PSN_CD         NUMERIC(4)     PRIMARY KEY,  -- Mã số cá nhân (PK)
+    USERID         VARCHAR(8)     NOT NULL,     -- ID người dùng
+    PASSWORD       VARCHAR(8)     NOT NULL,     -- Mật khẩu
+    USERNAME       VARCHAR(40)    NOT NULL,     -- Tên người dùng
+    DELETE_YMD     DATETIME       NULL,        -- Thời gian xóa (có thể NULL)
+    INSERT_YMD     DATETIME       DEFAULT CURRENT_TIMESTAMP, -- Thời gian tạo
+    INSERT_PSN_CD  NUMERIC(5)     DEFAULT 0,   -- Người tạo (mặc định 0)
+    UPDATE_YMD     DATETIME       NULL,        -- Thời gian cập nhật
+    UPDATE_PSN_CD  NUMERIC(5)     DEFAULT 0    -- Người cập nhật (mặc định 0)
+);
+
+
