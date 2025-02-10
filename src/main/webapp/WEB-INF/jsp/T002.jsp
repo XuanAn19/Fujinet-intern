@@ -1,38 +1,40 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Search</title>
-    <link rel="stylesheet" href="../css/T002.css">
+    <title>Training - Search Customer</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <header>
+        <h1>Training</h1>
+        <nav>
+            <a href="#">Login</a> > <span>Search Customer</span>
+        </nav>
+    </header>
 
-    <div class="container">
-        <h2>Training</h2>
-        <a href="login.jsp">Login</a> > <span>Search Customer</span>
+    <section class="search-container">
         <p>Welcome ABC</p>
-
-        <div class="search-container">
-            <label>Customer Name</label>
-            <input type="text" id="customerName">
-            <label>Sex</label>
-            <select id="sex">
-                <option value="">All</option>
+        <form id="searchForm" action="CustomerServlet" method="GET">
+            <input type="text" name="customerName" placeholder="Customer Name">
+            <select name="sex">
+                <option value="">Select</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
             </select>
-            <label>Birth day</label>
-            <input type="date" id="birthFrom"> ~ 
-            <input type="date" id="birthTo">
-            <button onclick="searchCustomer()">Search</button>
-        </div>
+            <input type="date" name="birthdayStart">
+            <input type="date" name="birthdayEnd">
+            <button type="submit">Search</button>
+        </form>
+    </section>
 
+    <section class="table-container">
         <table>
             <thead>
                 <tr>
-                    <th>Select</th>
+                    <th><input type="checkbox" id="selectAll"></th>
                     <th>USERID</th>
                     <th>Name</th>
                     <th>Sex</th>
@@ -40,23 +42,34 @@
                     <th>Address</th>
                 </tr>
             </thead>
-            <tbody id="customerTable">
+            <tbody>
+                <%
+                    java.util.List<Customer> customers = (java.util.List<Customer>) request.getAttribute("customers");
+                    if (customers != null) {
+                        for (Customer customer : customers) {
+                %>
                 <tr>
-                    <td><input type="checkbox"></td>
-                    <td>USER01</td>
-                    <td>Nguyen Xuan An</td>
-                    <td>Male</td>
-                    <td>2021/11/15</td>
-                    <td>Quy Nhon</td>
+                    <td><input type="checkbox" class="select-item" value="<%= customer.getUserId() %>"></td>
+                    <td><%= customer.getUserId() %></td>
+                    <td><%= customer.getName() %></td>
+                    <td><%= customer.getSex() %></td>
+                    <td><%= customer.getBirthday() %></td>
+                    <td><%= customer.getAddress() %></td>
                 </tr>
+                <%
+                        }
+                    }
+                %>
             </tbody>
         </table>
+        <button id="addUser">Add User</button>
+        <button id="deleteSelected">DELETE</button>
+    </section>
 
-        <button onclick="addUser()">Add User</button>
-        <button onclick="deleteUser()">DELETE</button>
+    <footer>
+        <p>Bản quyền</p>
+    </footer>
 
-    </div>
-
-    <script src="../js/script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
