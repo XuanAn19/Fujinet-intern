@@ -48,3 +48,38 @@ button {
     padding: 8px 12px;
     cursor: pointer;
 }
+
+
+
+.search-container {
+    background: yellow;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+}
+
+#searchForm {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+}
+
+#searchForm input,
+#searchForm select {
+    padding: 10px;
+    font-size: 16px;
+}
+
+#searchForm button {
+    margin-left: auto; /* Đẩy nút Search sang phải */
+    padding: 10px 15px;
+    font-size: 16px;
+    background-color: blue;
+    color: white;
+    border: none;
+    cursor: pointer;
+    min-width: 120px;
+}
+
+
