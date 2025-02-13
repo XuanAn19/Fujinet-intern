@@ -151,3 +151,105 @@ function goToPage(page) {
     url.searchParams.set('page', page);
     window.location.href = url.toString();
 }
+
+
+
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    const selectAll = document.getElementById("selectAll");
+    const checkboxes = document.querySelectorAll(".select-item");
+    const deleteButton = document.getElementById("deleteSelected");
+    const dataTable = document.getElementById("dataTable"); // Bảng chứa dữ liệu
+
+    // Kiểm tra nếu bảng không có dữ liệu -> Disable nút xóa
+    function checkIfTableIsEmpty() {
+        const rows = dataTable.querySelectorAll("tbody tr"); 
+        deleteButton.disabled = rows.length === 0; // Nếu không có hàng nào thì disable
+    }
+
+    // Khi checkbox chọn tất cả thay đổi
+    selectAll.addEventListener("change", function () {
+        checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    });
+
+    // Ban đầu kiểm tra xem có dữ liệu không
+    checkIfTableIsEmpty();
+});
+
+
+
+
+import com.google.gson.Gson;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.List;
+
+@WebServlet("/CustomerServlet")
+public class CustomerServlet extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        Gson gson = new Gson();
+        BufferedReader reader = request.getReader();
+        DeleteRequest deleteRequest = gson.fromJson(reader, DeleteRequest.class);
+
+        if (deleteRequest == null || deleteRequest.getDeleteIds() == null || deleteRequest.getDeleteIds().isEmpty()) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.getWriter().write("{\"success\": false, \"message\": \"Không có ID nào được chọn.\"}");
+            return;
+        }
+
+        boolean success = deleteCustomers(deleteRequest.getDeleteIds());
+        response.setContentType("application/json");
+        response.getWriter().write(gson.toJson(new Response(success)));
+    }
+
+    private boolean deleteCustomers(List<String> ids) {
+        String sql = "UPDATE customers SET delete_YMD = NOW() WHERE customerId IN (" + String.join(",", ids) + ")";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            int rows = stmt.executeUpdate();
+            return rows > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    class DeleteRequest {
+        private List<String> deleteIds;
+        public List<String> getDeleteIds() { return deleteIds; }
+    }
+
+    class Response {
+        boolean success;
+        Response(boolean success) { this.success = success; }
+    }
+}
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        Gson gson = new Gson();
+        DeleteRequest deleteRequest = gson.fromJson(request.getReader(), DeleteRequest.class);
+
+        boolean success = customerDAO.deleteCustomers(deleteRequest.deleteIds);
+        response.setContentType("application/json");
+        response.getWriter().write(gson.toJson(new Response(success)));
+    }
+
+    class DeleteRequest {
+        List<String> deleteIds;
+    }
+
+    class Response {
+        boolean success;
+        Response(boolean success) { this.success = success; }
+    }
+}
