@@ -1,0 +1,151 @@
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    max-height: 400px; /* Giới hạn chiều cao bảng */
+    position: relative;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    table-layout: fixed; /* Đảm bảo cột có độ rộng cố định */
+}
+
+th, td {
+    border: 1px solid black;
+    padding: 12px;
+    text-align: center;
+    white-space: nowrap; /* Ngăn nội dung bị xuống dòng */
+}
+
+/* Tiêu đề bảng cố định khi cuộn */
+th {
+    background-color: white; /* Màu trắng cho tiêu đề */
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+/* Hàng đầu tiên màu trắng, hàng thứ hai có màu nền */
+tr:nth-child(2) {
+    background-color: #dff0d8;
+}
+
+/* Các hàng chẵn có màu khác */
+tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+/* Hover hiệu ứng */
+tr:hover {
+    background-color: #c1e1c5;
+}
+
+/* Tăng kích thước checkbox */
+input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* Định dạng từng cột */
+#chkAll {
+    width: 5%;
+}
+
+#lblCustomerID {
+    width: 15%;
+}
+
+#lblCustomerName {
+    width: 25%;
+}
+
+#lblSex {
+    width: 10%;
+}
+
+#lblBirthday {
+    width: 15%;
+}
+
+#lblAddress {
+    width: 30%;
+}
+
+/* Nút bấm */
+button {
+    margin: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border: none;
+    background-color: #5cb85c;
+    color: white;
+    font-size: 14px;
+    border-radius: 5px;
+}
+
+button:hover {
+    background-color: #4cae4c;
+}
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    max-height: 400px; /* Giới hạn chiều cao và cho phép cuộn */
+    position: relative;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    table-layout: fixed; /* Giữ cột cố định, không bị nhảy */
+}
+
+th, td {
+    border: 1px solid black;
+    padding: 12px;
+    text-align: center;
+    white-space: nowrap; /* Ngăn nội dung bị xuống dòng */
+}
+
+th {
+    background-color: white; /* Hàng tiêu đề màu trắng */
+    position: sticky;
+    top: 0;
+    z-index: 2; /* Đảm bảo hiển thị trên nội dung */
+}
+
+tr:nth-child(2) {
+    background-color: #dff0d8; /* Hàng thứ 2 màu khác */
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2; /* Các hàng chẵn có màu nhẹ */
+}
+
+tr:hover {
+    background-color: #c1e1c5; /* Khi hover vào hàng */
+}
+
+input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+button {
+    margin: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border: none;
+    background-color: #5cb85c;
+    color: white;
+    font-size: 14px;
+    border-radius: 5px;
+}
+
+button:hover {
+    background-color: #4cae4c;
+}
