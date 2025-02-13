@@ -146,3 +146,8 @@ public int getTotalRecords(String customerName, String sex, String birthdayStart
     <button onclick="goToPage(${currentPage + 1})" ${currentPage == totalPages ? "disabled" : ""}>Tiến</button>
     <button onclick="goToPage(${totalPages})" ${currentPage == totalPages ? "disabled" : ""}>Trang cuối</button>
 </div>
+function goToPage(page) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', page);
+    window.location.href = url.toString();
+}
