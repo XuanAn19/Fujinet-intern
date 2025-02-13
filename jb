@@ -1,0 +1,148 @@
+protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    String customerName = request.getParameter("customerName");
+    String sex = request.getParameter("sex");
+    String birthdayStart = request.getParameter("birthdayStart");
+    String birthdayEnd = request.getParameter("birthdayEnd");
+
+    int page = 1;
+    int recordsPerPage = 15;
+
+    // Lấy số trang từ request, nếu không có thì mặc định là 1
+    if (request.getParameter("page") != null) {
+        page = Integer.parseInt(request.getParameter("page"));
+    }
+
+    // Gọi DAO để lấy danh sách khách hàng (có phân trang)
+    CustomerDAO dao = new CustomerDAO();
+    List<Customer> customers = dao.getCustomers(customerName, sex, birthdayStart, birthdayEnd, (page - 1) * recordsPerPage, recordsPerPage);
+    
+    // Tổng số bản ghi
+    int totalRecords = dao.getTotalRecords(customerName, sex, birthdayStart, birthdayEnd);
+    int totalPages = (int) Math.ceil((double) totalRecords / recordsPerPage);
+
+    // Đặt dữ liệu vào request
+    request.setAttribute("customers", customers);
+    request.setAttribute("currentPage", page);
+    request.setAttribute("totalPages", totalPages);
+    
+    // Giữ nguyên thông tin tìm kiếm
+    request.setAttribute("customerName", customerName);
+    request.setAttribute("sex", sex);
+    request.setAttribute("birthdayStart", birthdayStart);
+    request.setAttribute("birthdayEnd", birthdayEnd);
+
+    // Chuyển hướng đến JSP
+    RequestDispatcher dispatcher = request.getRequestDispatcher("views/T002.jsp");
+    dispatcher.forward(request, response);
+}
+<form method="GET">
+    <input type="text" name="customerName" placeholder="Tên khách hàng" value="${param.customerName}">
+    <select name="sex">
+        <option value="">Chọn</option>
+        <option value="Male" ${param.sex == 'Male' ? 'selected' : ''}>Nam</option>
+        <option value="Female" ${param.sex == 'Female' ? 'selected' : ''}>Nữ</option>
+    </select>
+    <input type="date" name="birthdayStart" value="${param.birthdayStart}">
+    <input type="date" name="birthdayEnd" value="${param.birthdayEnd}">
+    <button type="submit">Tìm kiếm</button>
+</form>
+public List<Customer> getCustomers(String customerName, String sex, String birthdayStart, String birthdayEnd, int offset, int limit) {
+    List<Customer> customers = new ArrayList<>();
+    String sql = "SELECT * FROM customers WHERE delete_YMD IS NULL";
+
+    // Xây dựng điều kiện tìm kiếm
+    if (customerName != null && !customerName.isEmpty()) {
+        sql += " AND customerName LIKE ?";
+    }
+    if (sex != null && !sex.isEmpty()) {
+        sql += " AND sex = ?";
+    }
+    if (birthdayStart != null && !birthdayStart.isEmpty()) {
+        sql += " AND birthday >= ?";
+    }
+    if (birthdayEnd != null && !birthdayEnd.isEmpty()) {
+        sql += " AND birthday <= ?";
+    }
+    sql += " ORDER BY customerId LIMIT ?, ?";
+
+    try (Connection conn = Database.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+        int index = 1;
+        if (customerName != null && !customerName.isEmpty()) {
+            stmt.setString(index++, "%" + customerName + "%");
+        }
+        if (sex != null && !sex.isEmpty()) {
+            stmt.setString(index++, sex);
+        }
+        if (birthdayStart != null && !birthdayStart.isEmpty()) {
+            stmt.setString(index++, birthdayStart);
+        }
+        if (birthdayEnd != null && !birthdayEnd.isEmpty()) {
+            stmt.setString(index++, birthdayEnd);
+        }
+        stmt.setInt(index++, offset);
+        stmt.setInt(index, limit);
+
+        ResultSet rs = stmt.executeQuery();
+        while (rs.next()) {
+            Customer customer = new Customer();
+            customer.setId(rs.getInt("customerId"));
+            customer.setName(rs.getString("customerName"));
+            customer.setSex(rs.getString("sex"));
+            customer.setBirthday(rs.getDate("birthday"));
+            customers.add(customer);
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+    return customers;
+}
+
+// Lấy tổng số bản ghi
+public int getTotalRecords(String customerName, String sex, String birthdayStart, String birthdayEnd) {
+    String sql = "SELECT COUNT(*) FROM customers WHERE delete_YMD IS NULL";
+    if (customerName != null && !customerName.isEmpty()) sql += " AND customerName LIKE ?";
+    if (sex != null && !sex.isEmpty()) sql += " AND sex = ?";
+    if (birthdayStart != null && !birthdayStart.isEmpty()) sql += " AND birthday >= ?";
+    if (birthdayEnd != null && !birthdayEnd.isEmpty()) sql += " AND birthday <= ?";
+
+    try (Connection conn = Database.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+        int index = 1;
+        if (customerName != null && !customerName.isEmpty()) stmt.setString(index++, "%" + customerName + "%");
+        if (sex != null && !sex.isEmpty()) stmt.setString(index++, sex);
+        if (birthdayStart != null && !birthdayStart.isEmpty()) stmt.setString(index++, birthdayStart);
+        if (birthdayEnd != null && !birthdayEnd.isEmpty()) stmt.setString(index++, birthdayEnd);
+
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next()) return rs.getInt(1);
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+    return 0;
+}
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Tên</th>
+        <th>Giới tính</th>
+        <th>Ngày sinh</th>
+    </tr>
+    <c:forEach var="customer" items="${customers}">
+        <tr>
+            <td>${customer.id}</td>
+            <td>${customer.name}</td>
+            <td>${customer.sex}</td>
+            <td>${customer.birthday}</td>
+        </tr>
+    </c:forEach>
+</table>
+<div class="pagination">
+    <button onclick="goToPage(1)" ${currentPage == 1 ? "disabled" : ""}>Trang đầu</button>
+    <button onclick="goToPage(${currentPage - 1})" ${currentPage == 1 ? "disabled" : ""}>Lùi</button>
+    <span>Trang ${currentPage} / ${totalPages}</span>
+    <button onclick="goToPage(${currentPage + 1})" ${currentPage == totalPages ? "disabled" : ""}>Tiến</button>
+    <button onclick="goToPage(${totalPages})" ${currentPage == totalPages ? "disabled" : ""}>Trang cuối</button>
+</div>
