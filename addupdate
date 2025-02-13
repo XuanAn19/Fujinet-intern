@@ -1,0 +1,432 @@
+Edit:
+<table border="1">
+    <tr>
+        <th>Customer ID</th>
+        <th>Customer Name</th>
+        <th>Sex</th>
+        <th>Birth Day</th>
+        <th>Address</th>
+    </tr>
+    <c:forEach var="customer" items="${customers}">
+        <tr>
+            <td>
+                <a href="CustomerServlet?action=edit&customerId=${customer.customerId}">
+                    ${customer.customerId}
+                </a>
+            </td>
+            <td>${customer.customerName}</td>
+            <td>${customer.sex == 0 ? "Male" : "Female"}</td>
+            <td>${customer.birthday}</td>
+            <td>${customer.address}</td>
+        </tr>
+    </c:forEach>
+</table>
+
+edit jsp:
+
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page import="model.Customer" %>
+<%
+    Customer customer = (Customer) request.getAttribute("customer");
+    boolean isEdit = customer != null;
+    Integer userId = (Integer) session.getAttribute("userId"); // Lấy ID của user đăng nhập từ session
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Customer</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { width: 500px; margin: auto; border: 1px solid #ccc; padding: 20px; border-radius: 8px; }
+        h2 { text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 8px; margin-top: 5px; }
+        .button-group { text-align: center; margin-top: 20px; }
+        button { padding: 8px 15px; margin: 5px; }
+        .error { color: red; text-align: center; }
+    </style>
+    <script>
+        function clearForm() {
+            document.getElementById("customerForm").reset();
+            document.getElementById("errorMessage").innerText = "";
+        }
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <h2>Edit Customer</h2>
+    <p class="error" id="errorMessage"><%= request.getAttribute("errorMessage") != null ? request.getAttribute("errorMessage") : "" %></p>
+    
+    <form id="customerForm" action="CustomerServlet?action=update" method="post">
+        <input type="hidden" name="customerId" value="<%= isEdit ? customer.getCustomerId() : "" %>">
+        <input type="hidden" name="updatePsdCd" value="<%= userId %>">
+
+        <div class="form-group">
+            <label>Customer ID:</label>
+            <input type="text" value="<%= isEdit ? customer.getCustomerId() : "" %>" disabled>
+        </div>
+
+        <div class="form-group">
+            <label>Customer Name:</label>
+            <input type="text" name="customerName" value="<%= isEdit ? customer.getCustomerName() : "" %>" required>
+        </div>
+
+        <div class="form-group">
+            <label>Sex:</label>
+            <select name="sex">
+                <option value="0" <%= isEdit && customer.getSex() == 0 ? "selected" : "" %>>Male</option>
+                <option value="1" <%= isEdit && customer.getSex() == 1 ? "selected" : "" %>>Female</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Birth Day:</label>
+            <input type="date" name="birthday" value="<%= isEdit ? customer.getBirthday() : "" %>" required>
+        </div>
+
+        <div class="form-group">
+            <label>Address:</label>
+            <textarea name="address" required><%= isEdit ? customer.getAddress() : "" %></textarea>
+        </div>
+
+        <div class="button-group">
+            <button type="submit">Save</button>
+            <button type="button" onclick="clearForm()">Clear</button>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>
+
+@WebServlet("/CustomerServlet")
+public class CustomerServlet extends HttpServlet {
+    private CustomerDAO customerDAO;
+
+    public void init() {
+        customerDAO = new CustomerDAO();
+    }
+
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        String action = request.getParameter("action");
+
+        if ("edit".equals(action)) {
+            int customerId = Integer.parseInt(request.getParameter("customerId"));
+            Customer customer = customerDAO.getCustomerById(customerId);
+            request.setAttribute("customer", customer);
+            request.getRequestDispatcher("edit-customer.jsp").forward(request, response);
+        }
+    }
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        String action = request.getParameter("action");
+
+        if ("update".equals(action)) {
+            try {
+                int customerId = Integer.parseInt(request.getParameter("customerId"));
+                String name = request.getParameter("customerName");
+                int sex = Integer.parseInt(request.getParameter("sex"));
+                String birthday = request.getParameter("birthday");
+                String address = request.getParameter("address");
+
+                HttpSession session = request.getSession();
+                Integer updatePsdCd = (Integer) session.getAttribute("userId");
+
+                if (updatePsdCd == null) {
+                    request.setAttribute("errorMessage", "Session expired. Please login again.");
+                    request.getRequestDispatcher("login.jsp").forward(request, response);
+                    return;
+                }
+
+                boolean success = customerDAO.updateCustomer(new Customer(customerId, name, sex, birthday, address, updatePsdCd));
+
+                if (success) {
+                    response.sendRedirect("customer-list.jsp");
+                } else {
+                    request.setAttribute("errorMessage", "Error updating customer.");
+                    request.getRequestDispatcher("edit-customer.jsp").forward(request, response);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                request.setAttribute("errorMessage", "Invalid data.");
+                request.getRequestDispatcher("edit-customer.jsp").forward(request, response);
+            }
+        }
+    }
+}
+
+public boolean updateCustomer(Customer customer) {
+    String sql = "UPDATE customers SET customer_name=?, sex=?, birthday=?, address=?, UPDATE_YMD=CURRENT_DATE, UPDATE_PSD_CD=? WHERE customer_id=?";
+    try (Connection conn = DatabaseConnection.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+        stmt.setString(1, customer.getCustomerName());
+        stmt.setInt(2, customer.getSex());
+        stmt.setString(3, customer.getBirthday());
+        stmt.setString(4, customer.getAddress());
+        stmt.setInt(5, customer.getUpdatePsdCd());
+        stmt.setInt(6, customer.getCustomerId());
+
+        return stmt.executeUpdate() > 0;
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+    return false;
+}
+
+Trong lúc đăng nhập:
+// Trong LoginServlet
+HttpSession session = request.getSession();
+session.setAttribute("userId", user.getUserId()); // Lưu ID người dùng đăng nhập
+
+
+
+
+Full -----------------------------------
+<%@ page contentType="text/html; charset=UTF-8" language="java" %>
+<%@ page import="java.util.*" %>
+<%@ page import="model.Customer" %>
+<%
+    Customer customer = (Customer) request.getAttribute("customer");
+    boolean isEdit = customer != null;
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= isEdit ? "Edit Customer" : "Add Customer" %></title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            width: 600px;
+            margin: 0 auto;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .error-message {
+            color: red;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            background: blue;
+            color: white;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button.clear {
+            background: gray;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2><%= isEdit ? "Edit Customer" : "Add New Customer" %></h2>
+        
+        <form id="customerForm" action="CustomerServlet" method="post" onsubmit="return validateForm()">
+            <input type="hidden" name="action" value="<%= isEdit ? "edit" : "add" %>">
+
+            <% if (isEdit) { %>
+                <div class="form-group">
+                    <label>Customer ID:</label>
+                    <input type="text" name="customerId" value="<%= customer.getId() %>" readonly>
+                </div>
+            <% } %>
+
+            <div class="form-group">
+                <label>Customer Name:</label>
+                <input type="text" name="customerName" value="<%= isEdit ? customer.getCustomerName() : "" %>" maxlength="50">
+                <span class="error-message" id="nameError"></span>
+            </div>
+
+            <div class="form-group">
+                <label>Sex:</label>
+                <select name="sex">
+                    <option value="0" <%= isEdit && customer.getSex() == 0 ? "selected" : "" %>>Male</option>
+                    <option value="1" <%= isEdit && customer.getSex() == 1 ? "selected" : "" %>>Female</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Birth Date (YYYY/MM/DD):</label>
+                <input type="text" name="birthDate" value="<%= isEdit ? customer.getBirthDate() : "" %>" maxlength="10">
+                <span class="error-message" id="dateError"></span>
+            </div>
+
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" name="email" value="<%= isEdit ? customer.getEmail() : "" %>" maxlength="40">
+                <span class="error-message" id="emailError"></span>
+            </div>
+
+            <div class="form-group">
+                <label>Address:</label>
+                <textarea name="address" maxlength="256"><%= isEdit ? customer.getAddress() : "" %></textarea>
+            </div>
+
+            <button type="submit"><%= isEdit ? "Save" : "Add New" %></button>
+            <button type="button" class="clear" onclick="clearForm()">Clear</button>
+        </form>
+    </div>
+
+    <script>
+        function validateForm() {
+            let name = document.forms["customerForm"]["customerName"].value.trim();
+            let birthDate = document.forms["customerForm"]["birthDate"].value.trim();
+            let email = document.forms["customerForm"]["email"].value.trim();
+
+            let nameError = document.getElementById("nameError");
+            let dateError = document.getElementById("dateError");
+            let emailError = document.getElementById("emailError");
+
+            nameError.innerHTML = "";
+            dateError.innerHTML = "";
+            emailError.innerHTML = "";
+
+            let isValid = true;
+
+            if (name.length === 0 || name.length > 50) {
+                nameError.innerHTML = "Customer name must be between 1-50 characters.";
+                isValid = false;
+            }
+
+            let dateRegex = /^\d{4}\/\d{2}\/\d{2}$/;
+            if (!dateRegex.test(birthDate)) {
+                dateError.innerHTML = "Invalid date format. Use YYYY/MM/DD.";
+                isValid = false;
+            }
+
+            let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                emailError.innerHTML = "Invalid email format.";
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        function clearForm() {
+            document.getElementById("customerForm").reset();
+            document.getElementById("nameError").innerHTML = "";
+            document.getElementById("dateError").innerHTML = "";
+            document.getElementById("emailError").innerHTML = "";
+        }
+    </script>
+</body>
+</html>
+import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+@WebServlet("/customer")
+public class CustomerServlet extends HttpServlet {
+    private static final long serialVersionUID = 1L;
+    private CustomerDAO customerDAO;
+
+    public void init() {
+        customerDAO = new CustomerDAO();
+    }
+
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        String action = request.getParameter("action");
+        String customerId = request.getParameter("id");
+
+        if ("edit".equals(action) && customerId != null) {
+            Customer customer = customerDAO.getCustomerById(Integer.parseInt(customerId));
+            request.setAttribute("customer", customer);
+        }
+        request.getRequestDispatcher("customer-form.jsp").forward(request, response);
+    }
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        String action = request.getParameter("action");
+        HttpSession session = request.getSession();
+        Integer userId = (Integer) session.getAttribute("userId");
+        String errorMessage = "";
+        
+        if (userId == null) {
+            response.sendRedirect("login.jsp");
+            return;
+        }
+
+        String customerName = request.getParameter("customerName");
+        String sex = request.getParameter("sex");
+        String birthDayStr = request.getParameter("birthDay");
+        String email = request.getParameter("email");
+        String address = request.getParameter("address");
+
+        // Validate dữ liệu
+        if (customerName.length() > 50 || email.length() > 40 || address.length() > 256) {
+            errorMessage = "Dữ liệu nhập vào quá dài!";
+        }
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
+        Date birthDay = null;
+        try {
+            birthDay = sdf.parse(birthDayStr);
+        } catch (ParseException e) {
+            errorMessage = "Ngày sinh không hợp lệ!";
+        }
+
+        if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$") || email.isEmpty()) {
+            errorMessage = "Email không hợp lệ!";
+        }
+
+        if (!errorMessage.isEmpty()) {
+            request.setAttribute("errorMessage", errorMessage);
+            request.getRequestDispatcher("customer-form.jsp").forward(request, response);
+            return;
+        }
+
+        if ("edit".equals(action)) {
+            int customerId = Integer.parseInt(request.getParameter("customerId"));
+            Customer customer = new Customer(customerId, customerName, Integer.parseInt(sex), birthDay, email, address);
+            customer.setUpdateYMD(new Date());
+            customer.setUpdatePSDCD(userId);
+            customerDAO.updateCustomer(customer);
+        } else if ("add".equals(action)) {
+            Customer customer = new Customer(customerName, Integer.parseInt(sex), birthDay, email, address);
+            customerDAO.addCustomer(customer);
+        }
+
+        response.sendRedirect("customer-list.jsp");
+    }
+}
+
+
+
