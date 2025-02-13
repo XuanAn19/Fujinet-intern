@@ -132,28 +132,47 @@ function deleteSelectedUsers() {
 
 
 document.getElementById("searchForm").addEventListener("submit", function (event) {
-    const birthdayStart = document.querySelector("input[name='birthdayStart']").value;
-    const birthdayEnd = document.querySelector("input[name='birthdayEnd']").value;
+    const customerName = document.querySelector("input[name='customerName']").value.trim();
+    const birthdayStart = document.querySelector("input[name='birthdayStart']").value.trim();
+    const birthdayEnd = document.querySelector("input[name='birthdayEnd']").value.trim();
     const today = new Date().toISOString().split("T")[0]; // Ngày hiện tại (YYYY-MM-DD)
 
-    if (birthdayStart && !/^\d{4}-\d{2}-\d{2}$/.test(birthdayStart)) {
+    // Kiểm tra độ dài CustomerName (tối đa 50 ký tự)
+    if (customerName.length > 50) {
+        alert("Tên khách hàng không được vượt quá 50 ký tự!");
+        event.preventDefault();
+        return;
+    }
+
+    // Kiểm tra độ dài BirthDayFrom, BirthDayTo (tối đa 10 ký tự)
+    if (birthdayStart.length > 10 || birthdayEnd.length > 10) {
+        alert("Ngày sinh chỉ được nhập tối đa 10 ký tự (YYYY-MM-DD)!");
+        event.preventDefault();
+        return;
+    }
+
+    // Kiểm tra định dạng ngày sinh (YYYY-MM-DD)
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (birthdayStart && !datePattern.test(birthdayStart)) {
         alert("Ngày bắt đầu không đúng định dạng (YYYY-MM-DD)!");
         event.preventDefault();
         return;
     }
 
-    if (birthdayEnd && !/^\d{4}-\d{2}-\d{2}$/.test(birthdayEnd)) {
+    if (birthdayEnd && !datePattern.test(birthdayEnd)) {
         alert("Ngày kết thúc không đúng định dạng (YYYY-MM-DD)!");
         event.preventDefault();
         return;
     }
 
+    // Kiểm tra ngày bắt đầu không lớn hơn ngày kết thúc
     if (birthdayStart && birthdayEnd && birthdayStart > birthdayEnd) {
         alert("Ngày bắt đầu không thể lớn hơn ngày kết thúc!");
         event.preventDefault();
         return;
     }
 
+    // Kiểm tra ngày sinh không vượt quá ngày hiện tại
     if ((birthdayStart && birthdayStart > today) || (birthdayEnd && birthdayEnd > today)) {
         alert("Ngày sinh không thể lớn hơn ngày hiện tại!");
         event.preventDefault();
