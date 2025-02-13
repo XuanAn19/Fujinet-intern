@@ -1,6 +1,24 @@
+import com.google.gson.Gson;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.util.List;
+import java.util.Map;
+
 @WebServlet("/UserServlet")
 public class UserServlet extends HttpServlet {
+    @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        request.setCharacterEncoding("UTF-8"); // Đảm bảo hỗ trợ tiếng Việt
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
         String action = request.getParameter("action");
         if ("delete".equals(action)) {
             BufferedReader reader = request.getReader();
@@ -8,20 +26,39 @@ public class UserServlet extends HttpServlet {
             Map<String, List<String>> requestData = gson.fromJson(reader, Map.class);
             List<String> userIds = requestData.get("userIds");
 
+            if (userIds == null || userIds.isEmpty()) {
+                response.getWriter().write("{\"success\": false, \"message\": \"Không có user nào được chọn\"}");
+                return;
+            }
+
             try (Connection conn = DatabaseUtil.getConnection()) {
                 String sql = "UPDATE users SET delete_YMD = NOW() WHERE user_id = ?";
                 PreparedStatement stmt = conn.prepareStatement(sql);
 
                 for (String id : userIds) {
-                    stmt.setInt(1, Integer.parseInt(id));
-                    stmt.addBatch();
+                    try {
+                        int userId = Integer.parseInt(id);
+                        stmt.setInt(1, userId);
+                        stmt.addBatch();
+                    } catch (NumberFormatException e) {
+                        System.out.println("Lỗi chuyển đổi user_id: " + id);
+                    }
                 }
 
-                stmt.executeBatch();
-                response.getWriter().write("{\"success\": true}");
+                int[] results = stmt.executeBatch();
+                int updatedRows = 0;
+                for (int result : results) {
+                    if (result > 0) updatedRows++;
+                }
+
+                if (updatedRows > 0) {
+                    response.getWriter().write("{\"success\": true, \"message\": \"Xóa thành công " + updatedRows + " người dùng!\"}");
+                } else {
+                    response.getWriter().write("{\"success\": false, \"message\": \"Không có bản ghi nào được cập nhật!\"}");
+                }
             } catch (Exception e) {
-                response.getWriter().write("{\"success\": false}");
                 e.printStackTrace();
+                response.getWriter().write("{\"success\": false, \"message\": \"Lỗi hệ thống!\"}");
             }
         }
     }
@@ -41,7 +78,8 @@ function deleteSelectedUsers() {
         return;
     }
 
-    // Gửi request đến Servlet để cập nhật delete_YMD
+    console.log("User IDs gửi lên:", selectedIds); // Debug
+
     fetch("UserServlet?action=delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50,13 +88,16 @@ function deleteSelectedUsers() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert("Xóa thành công!");
+            alert(data.message || "Xóa thành công!");
             location.reload(); // Load lại trang để cập nhật danh sách
         } else {
-            alert("Có lỗi xảy ra!");
+            alert(data.message || "Có lỗi xảy ra!");
         }
     })
-    .catch(error => console.error("Lỗi:", error));
+    .catch(error => {
+        console.error("Lỗi:", error);
+        alert("Lỗi kết nối đến server!");
+    });
 }
 
 
