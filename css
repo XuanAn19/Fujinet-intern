@@ -149,3 +149,115 @@ button {
 button:hover {
     background-color: #4cae4c;
 }
+😡😡😡😡
+
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tên</th>
+                <th>Email</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>1</td><td>Nguyễn Văn A</td><td>a@email.com</td></tr>
+            <tr><td>2</td><td>Trần Thị B</td><td>b@email.com</td></tr>
+            <tr><td>3</td><td>Lê Văn C</td><td>c@email.com</td></tr>
+        </tbody>
+    </table>
+</div>
+.table-container {
+    width: 100%;
+    height: 300px; /* Kích thước cố định của bảng */
+    overflow-y: auto; /* Bật cuộn khi dữ liệu quá nhiều */
+    border: 1px solid #ddd;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* Đảm bảo kích thước cột cố định */
+}
+
+thead {
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 10;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: left;
+}
+
+tbody tr {
+    height: 50px; /* Giữ chiều cao dòng cố định */
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const tableBody = document.querySelector("tbody");
+    const totalRows = 6; // Số dòng tối thiểu hiển thị
+
+    const currentRows = tableBody.querySelectorAll("tr").length;
+    const missingRows = totalRows - currentRows;
+
+    for (let i = 0; i < missingRows; i++) {
+        const emptyRow = document.createElement("tr");
+        emptyRow.innerHTML = `<td colspan="3"></td>`; // Thêm ô trống
+        tableBody.appendChild(emptyRow);
+    }
+});
+// CustomerDAO.java
+import java.sql.*;
+import java.util.*;
+
+public class CustomerDAO {
+    private Connection conn;
+    
+    public CustomerDAO(Connection conn) {
+        this.conn = conn;
+    }
+
+    public Customer getCustomerById(int id) throws SQLException {
+        String sql = "SELECT * FROM customers WHERE customer_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return new Customer(rs.getInt("customer_id"), rs.getString("customer_name"),
+                        rs.getInt("sex"), rs.getString("birth_day"), rs.getString("email"), rs.getString("address"));
+            }
+        }
+        return null;
+    }
+
+    public void updateCustomer(Customer customer, int updatedBy) throws SQLException {
+        String sql = "UPDATE customers SET customer_name=?, sex=?, birth_day=?, email=?, address=?, update_ymd=NOW(), update_psd_cd=? WHERE customer_id=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, customer.getCustomerName());
+            ps.setInt(2, customer.getSex());
+            ps.setString(3, customer.getBirthDay());
+            ps.setString(4, customer.getEmail());
+            ps.setString(5, customer.getAddress());
+            ps.setInt(6, updatedBy);
+            ps.setInt(7, customer.getCustomerId());
+            ps.executeUpdate();
+        }
+    }
+
+    public void addCustomer(Customer customer) throws SQLException {
+        String sql = "INSERT INTO customers (customer_name, sex, birth_day, email, address, create_ymd) VALUES (?, ?, ?, ?, ?, NOW())";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, customer.getCustomerName());
+            ps.setInt(2, customer.getSex());
+            ps.setString(3, customer.getBirthDay());
+            ps.setString(4, customer.getEmail());
+            ps.setString(5, customer.getAddress());
+            ps.executeUpdate();
+        }
+    }
+}
