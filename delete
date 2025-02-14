@@ -1,0 +1,108 @@
+fetch("UserServlet?action=delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userIds: selectedIds }) // Phải đúng định dạng JSON
+})
+
+
+BufferedReader reader = request.getReader();
+StringBuilder sb = new StringBuilder();
+String line;
+
+while ((line = reader.readLine()) != null) {
+    sb.append(line);
+}
+System.out.println("Dữ liệu JSON nhận được: " + sb.toString()); // Debug log
+
+Gson gson = new Gson();
+Map<String, List<String>> requestData = gson.fromJson(sb.toString(), Map.class);
+List<String> userIds = requestData.get("userIds");
+
+if (userIds == null || userIds.isEmpty()) {
+    response.getWriter().write("{\"success\": false, \"message\": \"Không có userIds!\"}");
+    return;
+}
+protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    response.setContentType("application/json"); // Đảm bảo kiểu JSON
+    response.setCharacterEncoding("UTF-8");
+
+    String action = request.getParameter("action");
+
+    if ("delete".equals(action)) {
+        BufferedReader reader = request.getReader();
+        Gson gson = new Gson();
+        Map<String, List<String>> requestData = gson.fromJson(reader, Map.class);
+        List<String> userIds = requestData.get("userIds");
+
+        try (Connection conn = DatabaseUtil.getConnection()) {
+            String sql = "UPDATE users SET delete_YMD = NOW() WHERE user_id = ?";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+
+            for (String id : userIds) {
+                stmt.setInt(1, Integer.parseInt(id));
+                stmt.addBatch();
+            }
+
+            int[] results = stmt.executeBatch();
+            boolean success = results.length > 0;
+
+            // Trả về JSON phản hồi
+            PrintWriter out = response.getWriter();
+            out.print("{\"success\": " + success + ", \"message\": \"Xóa thành công!\"}");
+            out.flush();
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.getWriter().write("{\"success\": false, \"message\": \"Lỗi khi xóa người dùng!\"}");
+        }
+    }
+}
+
+
+
+
+function deleteSelectedUsers() {
+    // Lấy tất cả checkbox được chọn
+    const selectedCheckboxes = document.querySelectorAll(".row-checkbox:checked");
+
+    if (selectedCheckboxes.length === 0) {
+        alert("Vui lòng chọn ít nhất một người dùng để xóa.");
+        return;
+    }
+
+    // Lấy danh sách ID từ thuộc tính `value`
+    const selectedIds = Array.from(selectedCheckboxes)
+        .map(checkbox => checkbox.value) // Lấy giá trị (ID)
+        .filter(id => id); // Lọc bỏ giá trị rỗng nếu có
+
+    console.log("User IDs gửi lên:", selectedIds); // Debug kiểm tra danh sách ID
+
+    if (!confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.length} người dùng không?`)) {
+        return;
+    }
+
+    // Gửi request đến Servlet để cập nhật delete_YMD
+    fetch("UserServlet?action=delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: selectedIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || "Xóa thành công!");
+            location.reload(); // Load lại trang để cập nhật danh sách
+        } else {
+            alert(data.message || "Có lỗi xảy ra!");
+        }
+    })
+    .catch(error => {
+        console.error("Lỗi:", error);
+        alert("Lỗi kết nối đến server!");
+    });
+}
+
+
+
+
+
+
