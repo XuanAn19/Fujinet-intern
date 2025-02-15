@@ -1,0 +1,221 @@
+-----------------LOGOUT-------
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-info a {
+   display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-left: auto; /* Đẩy toàn bộ phần user-info sang phải */
+}
+
+<div class="user-info">
+        <p>Welcome ABC</p>
+        <a href="#">Logout</a>
+    </div>
+
+--------Kiểm tra đã đăng nhập chưa-----
+<%
+    HttpSession sessionUser = request.getSession(false);
+    if (sessionUser == null || sessionUser.getAttribute("username") == null) {
+        response.sendRedirect("login.jsp");
+    }
+%>
+---jsp----
+<a href="logout">Logout</a>
+
+--servlet---
+
+@WebServlet("/logout")
+public class LogoutServlet extends HttpServlet {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        // Lấy session hiện tại (nếu có)
+        HttpSession session = request.getSession(false);
+        
+        // Kiểm tra nếu session tồn tại, hủy nó
+        if (session != null) {
+            session.invalidate();
+        }
+
+        // Chuyển hướng về trang đăng nhập hoặc trang chính
+        response.sendRedirect("login.jsp");
+    }
+}
+
+---------------------------------------------------------------
+Delete:
+
+protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        ResponseData responseData = new ResponseData();
+
+        try {
+            StringBuilder sb = new StringBuilder();
+            BufferedReader reader = request.getReader();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+
+            System.out.println("Dữ liệu nhận được: " + sb.toString());
+
+            JSONObject json = new JSONObject(sb.toString());
+            JSONArray userIds = json.getJSONArray("userIds");
+
+            if (userIds.length() > 0) {
+                for (int i = 0; i < userIds.length(); i++) {
+                    String id = userIds.getString(i);
+                    System.out.println("Xóa user ID: " + id);
+                    customerDAO.softDeleteCustomer(id);
+                }
+                responseData.setSuccess(true);
+                responseData.setMessage("Xóa thành công!");
+            } else {
+                responseData.setSuccess(false);
+                responseData.setMessage("Không có ID nào được chọn!");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            responseData.setSuccess(false);
+            responseData.setMessage("Lỗi hệ thống: " + e.getMessage());
+        }
+
+        sendResponse(response, responseData);
+    }
+
+    // ✅ Đảm bảo phản hồi JSON được gửi đúng cách
+    private void sendResponse(HttpServletResponse response, ResponseData responseData) throws IOException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
+        JSONObject jsonResponse = new JSONObject();
+        jsonResponse.put("success", responseData.isSuccess());
+        jsonResponse.put("message", responseData.getMessage()); // Thêm thông báo
+
+        System.out.println("Phản hồi từ server: " + jsonResponse.toString()); // Log để debug
+
+        PrintWriter out = response.getWriter();
+        out.print(jsonResponse.toString());
+        out.flush(); // Đảm bảo dữ liệu được gửi đi
+    }
+
+    // ✅ Đảm bảo phản hồi có cả trạng thái và thông báo
+    static class ResponseData {
+        private boolean success;
+        private String message;
+
+        public boolean isSuccess() { return success; }
+        public void setSuccess(boolean success) { this.success = success; }
+
+        public String getMessage() { return message; }
+        public void setMessage(String message) { this.message = message; }
+    }
+
+    
+---DAO---
+public void softDeleteCustomer(String id) {
+        String sql = "UPDATE MSTCUSTOMER SET DELETE_YMD = CURRENT_DATE WHERE CUSTOMER_ID = ?";
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+---jsp---
+document.getElementById("deleteSelected").addEventListener("click", function () {
+            let selectedIds = [];
+            document.querySelectorAll(".select-item:checked").forEach(checkbox => {
+                if (checkbox.value.trim() !== "") {  // Loại bỏ giá trị rỗng
+                    selectedIds.push(checkbox.value);
+                }
+            });
+
+            if (selectedIds.length === 0) {
+                alert("Vui lòng chọn ít nhất một mục để xóa!");
+                return;
+            }
+
+            if (!confirm("Bạn có chắc chắn muốn xóa các mục đã chọn?")) {
+                return;
+            }
+
+            fetch("T002", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userIds: selectedIds })
+            })
+            .then(response => response.text().then(text => {
+                console.log("Raw response:", text); // Log phản hồi dạng text
+                return text ? JSON.parse(text) : {};
+            }))
+            .then(data => {
+                console.log("Parsed response:", data); // Log phản hồi JSON
+                alert(data.message); // Hiển thị thông báo từ server
+                if (data.success) {
+                    location.reload();
+                }
+            })
+            .catch(error => console.error("Lỗi fetch:", error));
+        });
+
+
+        document.getElementById("selectAll").addEventListener("change", function () {
+            const isChecked = this.checked;
+            document.querySelectorAll(".select-item").forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+        });
+
+--------------------custom--------
+<td><%= customer.getSex().equals("1") ? "Male" : "Female" %></td>
+
+-------CSS-JS-----
+xml:
+ <servlet-mapping>
+    <servlet-name>default</servlet-name>
+    <url-pattern>/js/*</url-pattern>
+</servlet-mapping>
+
+<servlet-mapping>
+    <servlet-name>default</servlet-name>
+    <url-pattern>/css/*</url-pattern>
+</servlet-mapping>
+
+head: 
+<link rel="stylesheet" href="<%=request.getContextPath()%>/css/header.css">
+<script src="js/header.js"></script>
+
+-----add---edit-----
+1 cách: 
+protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    int userId = (int) request.getSession().getAttribute("loggedUserId");  // Lấy ID user đăng nhập
+
+    int customerId = request.getParameter("customerId").isEmpty() ? 0 : Integer.parseInt(request.getParameter("customerId"));
+    String customerName = request.getParameter("customerName");
+    int sex = Integer.parseInt(request.getParameter("sex"));
+    String birthDate = request.getParameter("birthDate");
+    String email = request.getParameter("email");
+    String address = request.getParameter("address");
+
+    Customer customer = new Customer(customerId, customerName, sex, birthDate, email, address, null);
+    
+    boolean success;
+    if (customerId > 0) {
+        success = customerDAO.updateCustomer(customer, userId);  // Chỉnh sửa
+    } else {
+        success = customerDAO.addCustomer(customer, userId);  // Thêm mới
+    }
+
+    if (success) {
+        response.sendRedirect("customerList.jsp?success=true");
+    } else {
+        response.sendRedirect("editCustomer.jsp?error=true");
+    }
+}
+
+
