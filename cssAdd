@@ -1,0 +1,137 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+
+.header {
+    background-color: red;
+    color: white;
+    padding: 10px;
+    text-align: center;
+}
+
+.header h1 {
+    margin: 0;
+}
+
+.header p {
+    margin: 5px 0 0;
+}
+
+.form-container {
+    background-color: white;
+    margin: 20px auto;
+    padding: 20px;
+    width: 40%;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-container h2 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.form-group {
+    display: flex; /* Sử dụng Flexbox để label và input nằm ngang hàng */
+    align-items: center; /* Căn giữa theo chiều dọc */
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    flex: 1; /* Label chiếm 1 phần */
+    margin-right: 10px; /* Khoảng cách giữa label và input */
+    font-weight: bold;
+    text-align: left; /* Căn trái label */
+}
+
+.form-group input, .form-group select {
+    flex: 3; /* Input chiếm 3 phần */
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    text-align: left; /* Căn trái input */
+}
+
+.form-actions {
+    display: flex; /* Sử dụng Flexbox cho các nút hành động */
+    justify-content: flex-start; /* Căn trái các nút */
+    gap: 10px; /* Khoảng cách giữa các nút */
+}
+
+.form-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.form-actions button[type="submit"] {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.form-actions button[type="reset"] {
+    background-color: #f44336;
+    color: white;
+}
+
+.error-message {
+    color: red;
+    margin-bottom: 15px;
+    text-align: left; /* Căn trái thông báo lỗi */
+}
+
+------
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Customer Form</title>
+    <link rel="stylesheet" href="css/T003.css"> <!-- Đảm bảo đường dẫn chính xác -->
+</head>
+<body>
+    <div class="header">
+        <h1>Training</h1>
+        <p>Login > Search Customer > Edit Customer</p>
+    </div>
+    <div class="form-container">
+    <h2>Welcome ABO</h2>
+    <form id="customerForm" action="T003" method="post">
+        <input type="hidden" name="action" value="update">
+        
+        <div class="form-group">
+            <label for="customerId">Customer Id</label>
+            <input type="text" id="customerId" name="customerId" value="12345" readonly>
+        </div>
+        <div class="form-group">
+            <label for="customerName">Customer Name</label>
+            <input type="text" id="customerName" name="customerName" value="John Doe" required>
+        </div>
+        <div class="form-group">
+            <label for="sex">Sex</label>
+            <select id="sex" name="sex">
+                <option value="male" selected>Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="birthDate">Birth Date (yyyy/mm/dd)</label>
+            <input type="text" id="birthDate" name="birthDate" value="1990/05/15" pattern="\d{4}/\d{2}/\d{2}" required>
+        </div>
+        <div class="form-actions">
+            <button type="submit">Save</button>
+            <button type="reset">Clear</button>
+        </div>
+    </form>
+</div>
+    <script src="js/T003.js"></script> <!-- Đảm bảo đường dẫn chính xác -->
+</body>
+</html>
+
