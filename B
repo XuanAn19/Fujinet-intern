@@ -1,0 +1,90 @@
+/* Centering the form */
+.form-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh; /* Full viewport height */
+    background-color: #f4f4f4;
+}
+
+.form {
+    display: grid;
+    grid-template-columns: 100px 1fr; /* Label width and input width */
+    gap: 10px; /* Spacing between label and input */
+    width: 500px; /* Fixed form width */
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Form Group */
+.form-group {
+    display: flex;
+    align-items: center; /* Align label and input vertically */
+}
+
+/* Label styling */
+.form-group label {
+    text-align: right;
+    margin-right: 10px; /* Space between label and input */
+    font-weight: bold;
+}
+
+/* Input, select and textarea styling */
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+/* Textarea with fixed height (3 lines) */
+.form-group textarea {
+    height: 80px; /* Roughly 3 lines of text */
+    resize: none; /* Disable resizing */
+}
+
+/* Button styling */
+button {
+    grid-column: span 2; /* Button spans across both columns */
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+
+<div class="form-container">
+    <form class="form">
+        <div class="form-group">
+            <label for="name">Name:</label>
+            <input type="text" id="name">
+        </div>
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email">
+        </div>
+        <div class="form-group">
+            <label for="country">Country:</label>
+            <select id="country">
+                <option value="us">USA</option>
+                <option value="uk">UK</option>
+                <option value="vn">Vietnam</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="message">Message:</label>
+            <textarea id="message"></textarea>
+        </div>
+        <button type="submit">Submit</button>
+    </form>
+</div>
