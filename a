@@ -1,74 +1,44 @@
-document.getElementById("deleteSelected").addEventListener("click", function () {
-    let selectedIds = [];
-    document.querySelectorAll(".select-item:checked").forEach(checkbox => {
-        if (checkbox.value.trim() !== "") {
-            selectedIds.push(checkbox.value);
-        }
-    });
-
-    if (selectedIds.length === 0) {
-        alert("Vui lòng chọn ít nhất một mục để xóa!");
-        return;
-    }
-
-    if (!confirm("Bạn có chắc chắn muốn xóa các mục đã chọn?")) {
-        return;
-    }
-
-    // Gửi danh sách ID dưới dạng chuỗi JSON đơn giản
-    fetch("T002", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(selectedIds) // Chỉ gửi mảng ["id1", "id2", "id3"]
-    })
-    .then(response => response.json())
-    .then(data => {
-        alert(data.message);
-        if (data.success) {
-            location.reload();
-        }
-    })
-    .catch(error => console.error("Lỗi fetch:", error));
-});
-
-
-
-
-protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    ResponseData responseData = new ResponseData();
-
-    try {
-        // Đọc dữ liệu JSON từ request
-        StringBuilder sb = new StringBuilder();
-        BufferedReader reader = request.getReader();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
-        }
-        String rawData = sb.toString();
-        System.out.println("Dữ liệu nhận được: " + rawData);
-
-        // Chuyển chuỗi JSON thành danh sách ID (Loại bỏ dấu ngoặc vuông [])
-        rawData = rawData.replace("[", "").replace("]", "").replace("\"", ""); 
-        List<String> userIds = Arrays.asList(rawData.split(",")); // Chuyển thành danh sách
-
-        if (!userIds.isEmpty()) {
-            customerDAO.softDeleteCustomers(userIds); // Xóa 1 lần bằng IN
-            responseData.setSuccess(true);
-            responseData.setMessage("Xóa thành công " + userIds.size() + " khách hàng!");
-        } else {
-            responseData.setSuccess(false);
-            responseData.setMessage("Không có ID nào được chọn!");
-        }
-    } catch (Exception e) {
-        e.printStackTrace();
-        responseData.setSuccess(false);
-        responseData.setMessage("Lỗi hệ thống: " + e.getMessage());
-    }
-
-    // Gửi response trực tiếp dưới dạng chuỗi JSON
-    response.setContentType("application/json");
-    PrintWriter out = response.getWriter();
-    out.println("{\"success\":" + responseData.isSuccess() + ", \"message\":\"" + responseData.getMessage() + "\"}");
-    out.flush();
+<div class="form-container">
+    <div class="form-group">
+        <label for="name">Name:</label>
+        <input type="text" id="name">
+    </div>
+    <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email">
+    </div>
+    <div class="form-group">
+        <label for="phone">Phone:</label>
+        <input type="text" id="phone">
+    </div>
+</div>
+.form-container {
+    display: flex;
+    flex-direction: column; /* Giữ các nhóm input theo cột */
+    gap: 10px; /* Khoảng cách giữa các hàng */
+    width: 100%; /* Đảm bảo kích thước đầy đủ */
 }
+
+.form-group {
+    display: flex;
+    align-items: center; /* Canh giữa label và input */
+    gap: 10px; /* Khoảng cách giữa label và input */
+    width: 100%;
+}
+
+.form-group label {
+    width: 100px; /* Cố định độ rộng của label để các input thẳng hàng */
+    text-align: right; /* Canh phải để thẳng với input */
+}
+
+.form-group input {
+    flex: 1; /* Input sẽ tự mở rộng chiếm hết phần còn lại */
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+
+
+
+
