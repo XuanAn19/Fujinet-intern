@@ -1,0 +1,298 @@
+disable delete----
+document.addEventListener("DOMContentLoaded", function () {
+    const deleteButton = document.getElementById("deleteSelected");
+    const checkboxes = document.querySelectorAll(".select-item");
+    const selectAll = document.getElementById("selectAll");
+
+    function updateDeleteButtonState() {
+        const hasChecked = document.querySelectorAll(".select-item:checked").length > 0;
+        deleteButton.disabled = !hasChecked;
+    }
+
+    // Vô hiệu hóa nút Delete nếu không có bản ghi nào
+    if (checkboxes.length === 0) {
+        deleteButton.disabled = true;
+    }
+
+    // Khi thay đổi trạng thái checkbox, cập nhật trạng thái nút Delete
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener("change", updateDeleteButtonState);
+    });
+
+    // Khi chọn hoặc bỏ chọn "Select All", cập nhật trạng thái nút Delete
+    selectAll.addEventListener("change", function () {
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+        updateDeleteButtonState();
+    });
+
+    deleteButton.addEventListener("click", function () {
+        let selectedIds = [];
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                selectedIds.push(checkbox.value);
+            }
+        });
+
+        if (selectedIds.length === 0) {
+            alert("Vui lòng chọn ít nhất một mục để xóa!");
+            return;
+        }
+
+        if (!confirm("Bạn có chắc chắn muốn xóa các mục đã chọn?")) {
+            return;
+        }
+
+        fetch("T002", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userIds: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(error => console.error("Lỗi fetch:", error));
+    });
+});
+
+----------------------------------------------
+css
+   .pagination .btn-group {
+    display: inline-flex; /* Sử dụng flexbox để các nút nằm sát nhau */
+    align-items: center; /* Căn giữa các nút theo chiều dọc */
+}
+
+.pagination .btn-group button {
+    margin: 0; /* Loại bỏ margin giữa các nút */
+    padding: 8px 12px; /* Giữ nguyên padding */
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 0; /* Loại bỏ border-radius để các nút dính sát nhau */
+}
+
+.pagination .btn-group button:not(:last-child) {
+    border-right: none; /* Loại bỏ border bên phải của nút trừ nút cuối cùng */
+}
+
+.pagination-btn {
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 0;
+    border-right: none; /* Loại bỏ border bên phải */
+}
+
+.pagination-btn:last-child {
+    border-right: 1px solid black; /* Thêm border bên phải cho nút cuối cùng */
+}
+
+ <section class="pagination">
+        <% Integer currentPage = (Integer) request.getAttribute("currentPage");
+           Integer totalPages = (Integer) request.getAttribute("totalPages");
+           currentPage = (currentPage != null) ? currentPage : 1;
+           totalPages = (totalPages != null) ? totalPages : 1; %>
+ <div class="btn-group">
+        <button onclick="goToPage(1)" <%= (currentPage <= 2) ? "disabled" : "" %>>Trang đầu</button>
+        <button onclick="goToPage(<%= currentPage - 1 %>)" <%= (currentPage == 1) ? "disabled" : "" %>>Lùi</button>
+        </div>
+        <span>Trang <%= currentPage %> / <%= totalPages %></span>
+         <div class="btn-group">
+        
+        <button onclick="goToPage(<%= currentPage + 1 %>)" <%= (currentPage >= totalPages) ? "disabled" : "" %>>Tiến</button>
+        <button onclick="goToPage(<%= totalPages %>)" <%= (currentPage >= totalPages - 1) ? "disabled" : "" %>>Trang cuối</button>
+        </div>
+    </section>
+
+js----
+function goToPage(page) {
+            const params = new URLSearchParams(window.location.search);
+            params.set("page", page);
+            window.location.href = "T002?" + params.toString();
+        }
+
+------button add new---
+  <button id="addUser" onclick="location.href='T003.jsp'">Add New</button>
+
+--------full source----
+<%@page import="java.net.URLEncoder"%>
+<%@page import="fuji.T002"%>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Training - Search Customer</title>
+    <style>
+        .hidden { display: none; }
+        .pagination { text-align: center; margin-bottom: 10px; }
+        .pagination button { margin: 5px; padding: 8px 12px; font-size: 14px; cursor: pointer; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        header { background: red; color: white; padding: 10px; }
+        .search-container { background: yellow; padding: 15px; display: flex; align-items: center; }
+        #searchForm { display: flex; align-items: center; gap: 15px; width: 100%; }
+        #searchForm input, #searchForm select { padding: 10px; font-size: 16px; }
+        #searchForm button { margin-left: auto; padding: 10px 15px; font-size: 16px; background-color: blue; color: white; border: none; cursor: pointer; min-width: 120px; }
+        .table-container { width: 100%; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+        thead {
+            position: sticky;
+            top: 0;
+            background-color: white;
+            z-index: 1;
+        }
+        tbody {
+            display: block;
+            max-height: 300px; /* Điều chỉnh chiều cao tối đa của tbody */
+            overflow-y: auto; /* Kích hoạt cuộn dọc */
+            width: 100%;
+        }
+        th, td { 
+            border: 1px solid black; 
+            padding: 10px; 
+            text-align: center; 
+        }
+        tr:nth-child(even) { background-color: #dff0d8; }
+        
+        .pagination .btn-group {
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .pagination .btn-group button {
+            margin: 0;
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 0;
+        }
+        
+        .pagination .btn-group button:not(:last-child) {
+            border-right: none;
+        }
+
+        .pagination-btn {
+            margin: 0;
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 0;
+            border-right: none;
+        }
+
+        .pagination-btn:last-child {
+            border-right: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <h1>Training</h1>
+    <nav><a href="#">Login</a> > <span>Search Customer</span></nav>
+    <div class="user-info"><p>Welcome ABC</p><a href="#">Logout</a></div>
+
+    <section class="search-container">
+        <form id="searchForm" method="GET">
+            <input type="text" name="customerName" placeholder="Customer Name" value="${param.customerName}">
+            <select name="sex">
+                <option value="">Select</option>
+                <option value="Male" ${param.sex == 'Male' ? 'selected' : ''}>Male</option>
+                <option value="Female" ${param.sex == 'Female' ? 'selected' : ''}>Female</option>
+            </select>
+            <input type="date" name="birthdayStart" value="${param.birthdayStart}">
+            <input type="date" name="birthdayEnd" value="${param.birthdayEnd}">
+            <button type="submit">Search</button>
+        </form>
+    </section>
+
+    <section class="pagination">
+        <% Integer currentPage = (Integer) request.getAttribute("currentPage");
+           Integer totalPages = (Integer) request.getAttribute("totalPages");
+           currentPage = (currentPage != null) ? currentPage : 1;
+           totalPages = (totalPages != null) ? totalPages : 1; %>
+ <div class="btn-group">
+        <button onclick="goToPage(1)" <%= (currentPage <= 2) ? "disabled" : "" %>>Trang đầu</button>
+        <button onclick="goToPage(<%= currentPage - 1 %>)" <%= (currentPage == 1) ? "disabled" : "" %>>Lùi</button>
+        </div>
+        <span>Trang <%= currentPage %> / <%= totalPages %></span>
+         <div class="btn-group">
+        
+        <button onclick="goToPage(<%= currentPage + 1 %>)" <%= (currentPage >= totalPages) ? "disabled" : "" %>>Tiến</button>
+        <button onclick="goToPage(<%= totalPages %>)" <%= (currentPage >= totalPages - 1) ? "disabled" : "" %>>Trang cuối</button>
+        </div>
+    </section>
+
+    <section class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="selectAll"></th>
+                    <th>USERID</th>
+                    <th>Name</th>
+                    <th>Sex</th>
+                    <th>Birthday</th>
+                    <th>Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% java.util.List<T002> customers = (java.util.List<T002>) request.getAttribute("customers");
+                   if (customers != null) {
+                       for (T002 customer : customers) { %>
+                <tr>
+                    <td><input type="checkbox" class="select-item" value="<%= customer.getId() %>"></td>
+                    <td><a href="customerForm.jsp?id=<%= customer.getId() %>"><%= customer.getId() %></a></td>
+                    <td><%= customer.getName() %></td>
+                    <td><%= customer.getSex().equals("1") ? "Male" : "Female" %></td>
+                    <td><%= customer.getBirthday() %></td>
+                    <td><%= customer.getAddress() %></td>
+                </tr>
+                <% } } %>
+            </tbody>
+        </table>
+        <button id="addUser" onclick="location.href='T003.jsp'">Add New</button>
+        <button id="deleteSelected">DELETE</button>
+    </section>
+
+    <script>
+        function goToPage(page) {
+            const params = new URLSearchParams(window.location.search);
+            params.set("page", page);
+            window.location.href = "T002?" + params.toString();
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const deleteButton = document.getElementById("deleteSelected");
+            const selectAllCheckbox = document.getElementById("selectAll");
+            const checkboxes = document.querySelectorAll(".select-item");
+
+            function updateDeleteButtonState() {
+                deleteButton.disabled = !Array.from(checkboxes).some(checkbox => checkbox.checked);
+            }
+
+            selectAllCheckbox.addEventListener("change", function () {
+                checkboxes.forEach(checkbox => checkbox.checked = this.checked);
+                updateDeleteButtonState();
+            });
+
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener("change", updateDeleteButtonState);
+            });
+
+            deleteButton.addEventListener("click", function () {
+                if (!confirm("Bạn có chắc chắn muốn xóa?")) return;
+                const selectedIds = Array.from(checkboxes)
+                    .filter(checkbox => checkbox.checked)
+                    .map(checkbox => checkbox.value);
+                if (selectedIds.length > 0) {
+                    fetch("T002", { method: "POST", body: JSON.stringify({ userIds: selectedIds }) })
+                        .then(() => location.reload());
+                }
+            });
+        });
+    </script>
+</body>
+</html>
