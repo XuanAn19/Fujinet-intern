@@ -1,0 +1,161 @@
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class CustomerDAO {
+    public boolean softDeleteCustomers(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return false;
+        }
+
+        // Tạo danh sách dấu `?` cho câu SQL
+        String placeholders = ids.stream().map(id -> "?").collect(Collectors.joining(","));
+        String sql = "UPDATE MSTCUSTOMER SET DELETE_YMD = CURRENT_DATE WHERE CUSTOMER_ID IN (" + placeholders + ")";
+
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            
+            // Gán từng giá trị vào câu SQL
+            for (int i = 0; i < ids.size(); i++) {
+                stmt.setString(i + 1, ids.get(i));
+            }
+
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+}
+
+
+
+
+
+
+
+
+
+protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        ResponseData responseData = new ResponseData();
+
+        try {
+            StringBuilder sb = new StringBuilder();
+            BufferedReader reader = request.getReader();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+
+            System.out.println("Dữ liệu nhận được: " + sb.toString());
+
+            JSONObject json = new JSONObject(sb.toString());
+            JSONArray userIds = json.getJSONArray("userIds");
+
+            if (userIds.length() > 0) {
+                for (int i = 0; i < userIds.length(); i++) {
+                    String id = userIds.getString(i);
+                    System.out.println("Xóa user ID: " + id);
+                    customerDAO.softDeleteCustomer(id);
+                }
+                responseData.setSuccess(true);
+                responseData.setMessage("Xóa thành công!");
+            } else {
+                responseData.setSuccess(false);
+                responseData.setMessage("Không có ID nào được chọn!");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            responseData.setSuccess(false);
+            responseData.setMessage("Lỗi hệ thống: " + e.getMessage());
+        }
+
+        sendResponse(response, responseData);
+    }
+
+    // ✅ Đảm bảo phản hồi JSON được gửi đúng cách
+    private void sendResponse(HttpServletResponse response, ResponseData responseData) throws IOException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
+        JSONObject jsonResponse = new JSONObject();
+        jsonResponse.put("success", responseData.isSuccess());
+        jsonResponse.put("message", responseData.getMessage()); // Thêm thông báo
+
+        System.out.println("Phản hồi từ server: " + jsonResponse.toString()); // Log để debug
+
+        PrintWriter out = response.getWriter();
+        out.print(jsonResponse.toString());
+        out.flush(); // Đảm bảo dữ liệu được gửi đi
+    }
+
+    // ✅ Đảm bảo phản hồi có cả trạng thái và thông báo
+    static class ResponseData {
+        private boolean success;
+        private String message;
+
+        public boolean isSuccess() { return success; }
+        public void setSuccess(boolean success) { this.success = success; }
+
+        public String getMessage() { return message; }
+        public void setMessage(String message) { this.message = message; }
+    }
+
+
+---DAO---
+public void softDeleteCustomer(String id) {
+        String sql = "UPDATE MSTCUSTOMER SET DELETE_YMD = CURRENT_DATE WHERE CUSTOMER_ID = ?";
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, id);
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+---jsp---
+document.getElementById("deleteSelected").addEventListener("click", function () {
+            let selectedIds = [];
+            document.querySelectorAll(".select-item:checked").forEach(checkbox => {
+                if (checkbox.value.trim() !== "") {  // Loại bỏ giá trị rỗng
+                    selectedIds.push(checkbox.value);
+                }
+            });
+
+            if (selectedIds.length === 0) {
+                alert("Vui lòng chọn ít nhất một mục để xóa!");
+                return;
+            }
+
+            if (!confirm("Bạn có chắc chắn muốn xóa các mục đã chọn?")) {
+                return;
+            }
+
+            fetch("T002", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userIds: selectedIds })
+            })
+            .then(response => response.text().then(text => {
+                console.log("Raw response:", text); // Log phản hồi dạng text
+                return text ? JSON.parse(text) : {};
+            }))
+            .then(data => {
+                console.log("Parsed response:", data); // Log phản hồi JSON
+                alert(data.message); // Hiển thị thông báo từ server
+                if (data.success) {
+                    location.reload();
+                }
+            })
+            .catch(error => console.error("Lỗi fetch:", error));
+        });
+
+
+        document.getElementById("selectAll").addEventListener("change", function () {
+            const isChecked = this.checked;
+            document.querySelectorAll(".select-item").forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+        });
