@@ -1,0 +1,357 @@
+--- scroll---
+tbody {
+    display: block;
+    max-height: 300px; /* Chiều cao tối đa của tbody */
+    overflow-y: auto; /* Cho phép cuộn dọc */
+    overflow-x: hidden; /* Ẩn cuộn ngang */
+    width: 100%;
+    scrollbar-width: none; /* Ẩn thanh cuộn dọc trên Firefox */
+}
+
+tbody::-webkit-scrollbar {
+    display: none; /* Ẩn thanh cuộn dọc trên Chrome, Safari */
+}
+
+
+@WebServlet("/T003")
+public class T003Servlet extends HttpServlet {
+	private T003Dao customerDAO;
+
+    public void init() {
+        customerDAO = new T003Dao();
+    }
+
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        String action = request.getParameter("action");
+        String errorMessage = (String) request.getAttribute("errorMessage");
+        System.out.println("Action : "+ action);
+        if ("edit".equals(action)) {
+            int customerId = Integer.parseInt(request.getParameter("customerId"));
+            T002 customer = customerDAO.getCustomerById(customerId);
+            System.out.println("du lieu da lay: " + customer.getId() + customer.getName());
+            request.setAttribute("customer", customer);
+            request.getRequestDispatcher("views/T003.jsp").forward(request, response);
+        }
+        request.setAttribute("errorMessage", errorMessage);
+        System.out.println("Error get:" + errorMessage);
+        // Chỉ forward nếu response chưa bị commit
+        if (!response.isCommitted()) {
+            request.getRequestDispatcher("views/T003.jsp").forward(request, response);
+        }
+    }
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String action = request.getParameter("action"); // Lấy action từ request
+        String customerId = request.getParameter("customerId"); // Lấy ID nếu đang sửa
+        String name = request.getParameter("customerName");
+        String sex = request.getParameter("sex");
+        String birthday = request.getParameter("birthDate");
+        String address = request.getParameter("address");
+        String email = request.getParameter("email");
+
+        String error = "";
+
+        if (name == null || name.trim().isEmpty()|| name.length() > 50) {
+            error = "Tên không được để trống. ";
+        }
+        if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$") || email.isEmpty()) {
+        	error = "Email không hợp lệ!";
+        }
+		
+
+        if (!error.isEmpty()) {
+            request.setAttribute("errorMessage", error);
+            request.setAttribute("customerName", name);
+            request.setAttribute("sex", sex);
+            request.setAttribute("birthDate", birthday);
+            request.setAttribute("address", address);
+            request.setAttribute("customerId", customerId);
+            request.setAttribute("email", email);
+            System.out.println("Erro----:" + error);
+            System.out.println("erro: "+ birthday + sex + name + address + customerId + email);
+            // Nếu đang sửa, giữ lại action=edit
+            if ("edit".equals(action) && customerId != null) {
+            	// Tạo một đối tượng chứa dữ liệu vừa nhập
+                T002 customer = new T002(
+                    customerId != null ? Integer.parseInt(customerId) : 0, // ID giữ nguyên nếu có
+                    name, sex, birthday, email, address
+                );
+
+                // Gán dữ liệu vào request để giữ lại khi reload trang
+                request.setAttribute("customer", customer);
+
+                System.out.println("Error detected, keeping user input: " + customer.getName());
+
+                request.getRequestDispatcher("views/T003.jsp").forward(request, response);
+                return;
+            } else {
+            	T002 customer = new T002(
+                        customerId != null ? Integer.parseInt(customerId) : 0, // ID giữ nguyên nếu có
+                        name, sex, birthday, email, address
+                    );
+
+                    // Gán dữ liệu vào request để giữ lại khi reload trang
+                   request.setAttribute("customer", customer);
+            	System.out.println("erro not edit: "+ birthday + sex + name + address + customerId + email);
+            	 request.getRequestDispatcher("views/T003.jsp").forward(request, response);
+            	 
+            }
+            return;
+        }
+
+        if ("edit".equals(action)) {
+        	int customerID = Integer.parseInt(customerId);
+            T002 customer = new T002(customerID, name, sex, birthday, email, address);
+           
+            customerDAO.updateCustomer(customer);
+        } else if ("add".equals(action)) {
+        	T002 customer = new T002(0, name, sex, birthday, email, address);
+        	//customerDAO.addCustomer(customer);
+        }
+
+        response.sendRedirect("T002");
+    }
+
+
+}
+
+
+
+-------------
+<%@ page contentType="text/html; charset=UTF-8" language="java" %>
+<%@ page import="fuji.T002" %>
+<%
+    T002 customer = (T002) request.getAttribute("customer");
+    String errorMessage = (String) request.getAttribute("errorMessage");
+    boolean isEdit = customer != null;
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= isEdit ? "Edit Customer" : "Add New Customer" %></title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            width: 600px;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-bottom: 15px;
+            
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            background: blue;
+            color: white;
+            cursor: pointer;
+        }
+        button.clear {
+            background: gray;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2><%= isEdit ? "Edit Customer" : "Add New Customer" %></h2>
+
+        <% if (errorMessage != null && !errorMessage.isEmpty()) { %>
+            <div class="error-message"><%= errorMessage %></div>
+        <% } %>
+
+        <form id="customerForm" action="T003" method="post">
+            <input type="hidden" name="action" value="<%= isEdit ? "edit" : "add" %>">
+
+            <% if (isEdit) { %>
+                <div class="form-group">
+                    <label>Customer ID:</label>
+                    <input type="text" name="customerId" value="<%= customer.getId() %>" readonly>
+                </div>
+            <% } %>
+
+            <div class="form-group">
+                <label>Customer Name:</label>
+                <input type="text" name="customerName" value="<%= isEdit ? customer.getName() : "" %>" >
+            </div>
+
+            <div class="form-group">
+                <label>Sex:</label>
+                <select name="sex">
+                    <option value="0" <%= isEdit && "0".equals(customer.getSex()) ? "selected" : "" %>>Male</option>
+                    <option value="1" <%= isEdit && "1".equals(customer.getSex()) ? "selected" : "" %>>Female</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Birth Date (YYYY/MM/DD):</label>
+                <input type="text" name="birthDate" value="<%= isEdit ? customer.getBirthday() : "" %>" maxlength="10">
+            </div>
+
+            <div class="form-group">
+                <label>Email:</label>
+                <input type="email" name="email" value="<%= isEdit ? customer.getEmail() : "" %>" maxlength="40">
+            </div>
+
+            <div class="form-group">
+                <label>Address:</label>
+                <textarea name="address" maxlength="256"><%= isEdit ? customer.getAddress() : "" %></textarea>
+            </div>
+
+            <button type="submit"><%= isEdit ? "Save" : "Add New" %></button>
+            <button type="button" class="clear" onclick="clearForm()">Clear</button>
+        </form>
+    </div>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("customerForm");
+        const errorDiv = document.querySelector(".error-message");
+
+        // Giữ khoảng trống sẵn cho lỗi (tránh nhảy form khi hiển thị lỗi)
+        if (!errorDiv.innerHTML.trim()) {
+            errorDiv.style.minHeight = "20px";
+            errorDiv.innerHTML = "&nbsp;";
+        }
+
+        form.addEventListener("submit", function (event) {
+            event.preventDefault(); // Chặn submit mặc định
+            if (validateForm()) {
+                form.submit(); // Chỉ submit nếu hợp lệ
+            }
+        });
+    });
+
+    function validateForm() {
+        let errorMessage = "";
+        let name = document.querySelector('input[name="customerName"]').value.trim();
+        let email = document.querySelector('input[name="email"]').value.trim();
+        let birthDate = document.querySelector('input[name="birthDate"]').value.trim();
+        let address = document.querySelector('textarea[name="address"]').value.trim();
+
+        let emailError = document.getElementById("emailError");
+
+        // Kiểm tra tên
+        if (name === "" || name.length > 50) {
+            errorMessage += "Tên không được để trống hoặc quá 50 ký tự.<br>";
+        }
+
+        // Kiểm tra email hợp lệ
+        const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+        if (!email.match(emailRegex)) {
+            emailError.innerHTML = "Email không hợp lệ.";
+            emailError.style.visibility = "visible";
+            return false;
+        } else {
+            emailError.innerHTML = "";
+            emailError.style.visibility = "hidden";
+        }
+
+        // Kiểm tra ngày sinh (YYYY/MM/DD)
+        const dateRegex = /^\d{4}\/\d{2}\/\d{2}$/;
+        if (!birthDate.match(dateRegex)) {
+            errorMessage += "Ngày sinh phải theo định dạng YYYY/MM/DD.<br>";
+        }
+
+        // Kiểm tra địa chỉ
+        if (address.length > 256) {
+            errorMessage += "Địa chỉ không được quá 256 ký tự.<br>";
+        }
+
+        // Hiển thị lỗi nếu có
+        let errorDiv = document.querySelector(".error-message");
+        if (errorMessage !== "") {
+            errorDiv.innerHTML = errorMessage;
+            errorDiv.style.visibility = "visible";
+            return false;
+        } else {
+            errorDiv.innerHTML = "&nbsp;"; // Giữ chỗ nếu không có lỗi
+            errorDiv.style.visibility = "hidden";
+            return true;
+        }
+    }
+
+    function clearForm() {
+        document.querySelector('input[name="customerName"]').value = "";
+        document.querySelector('select[name="sex"]').value = "0";
+        document.querySelector('input[name="birthDate"]').value = "";
+        document.querySelector('input[name="email"]').value = "";
+        document.querySelector('textarea[name="address"]').value = "";
+
+        // Ẩn lỗi và giữ khoảng trống sẵn
+        let errorDiv = document.querySelector(".error-message");
+        errorDiv.innerHTML = "&nbsp;";
+        errorDiv.style.visibility = "hidden";
+
+        // Ẩn lỗi email
+        let emailError = document.getElementById("emailError");
+        emailError.innerHTML = "";
+        emailError.style.visibility = "hidden";
+    }
+
+        /* function validateForm() {
+            let name = document.forms["customerForm"]["customerName"].value.trim();
+            let birthDate = document.forms["customerForm"]["birthDate"].value.trim();
+            let email = document.forms["customerForm"]["email"].value.trim();
+
+            let nameError = document.getElementById("nameError");
+            let dateError = document.getElementById("dateError");
+            let emailError = document.getElementById("emailError");
+
+            nameError.innerHTML = "";
+            dateError.innerHTML = "";
+            emailError.innerHTML = "";
+
+            let isValid = true;
+
+            if (name.length === 0 || name.length > 50) {
+                nameError.innerHTML = "Customer name must be between 1-50 characters.";
+                isValid = false;
+            }
+
+            let dateRegex = /^\d{4}\/\d{2}\/\d{2}$/;
+            if (!dateRegex.test(birthDate)) {
+                dateError.innerHTML = "Invalid date format. Use YYYY/MM/DD.";
+                isValid = false;
+            }
+
+            let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                emailError.innerHTML = "Invalid email format.";
+                isValid = false;
+            }
+
+            return isValid;
+        } 
+
+        function clearForm() {
+            document.getElementById("emailError").innerHTML = "";
+            document.getElementById("emailError").style.visilable = "hidden"
+        }*/
+    </script>
+</body>
+</html>
