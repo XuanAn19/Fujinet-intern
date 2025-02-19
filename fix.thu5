@@ -1,0 +1,8 @@
+<div class="form-group">
+			    <label>Sex:</label>
+			    <select name="sex">
+			        <option value="" <%= isEdit ? "" : "selected" %>>-- Select --</option>
+			        <option value="0" <%= isEdit && "0".equals(customer.getSex()) ? "selected" : "" %>>Male</option>
+			        <option value="1" <%= isEdit && "1".equals(customer.getSex()) ? "selected" : "" %>>Female</option>
+			    </select>
+			</div>
