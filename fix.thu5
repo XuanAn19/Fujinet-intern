@@ -6,3 +6,173 @@
 			        <option value="1" <%= isEdit && "1".equals(customer.getSex()) ? "selected" : "" %>>Female</option>
 			    </select>
 			</div>
+------------------panagation----
+<div class="pagination">
+    <% if (currentPage > 1) { %>
+        <a href="?page=1">First</a>
+        <a href="?page=<%= currentPage - 1 %>">Previous</a>
+    <% } %>
+
+    <% for (int i = 1; i <= totalPages; i++) { %>
+        <a href="?page=<%= i %>" class="<%= (i == currentPage) ? "active" : "" %>"><%= i %></a>
+    <% } %>
+
+    <% if (currentPage < totalPages) { %>
+        <a href="?page=<%= currentPage + 1 %>">Next</a>
+        <a href="?page=<%= totalPages %>">Last</a>
+    <% } %>
+</div>
+
+
+int page = 1; // Mặc định là trang đầu tiên
+int recordsPerPage = 10; // Số bản ghi trên mỗi trang
+
+// Lấy giá trị page từ request
+String pageParam = request.getParameter("page");
+if (pageParam != null) {
+    try {
+        page = Integer.parseInt(pageParam);
+        if (page < 1) { // Nếu page < 1 thì đặt lại thành 1
+            page = 1;
+        }
+    } catch (NumberFormatException e) {
+        page = 1; // Nếu lỗi khi parse, mặc định về trang 1
+    }
+}
+
+// Lấy tổng số bản ghi từ database
+int totalRecords = customerDAO.getTotalRecords(); 
+int totalPages = (int) Math.ceil((double) totalRecords / recordsPerPage);
+
+// Nếu page vượt quá số trang, đặt lại page = totalPages
+if (page > totalPages && totalPages > 0) {
+    page = totalPages;
+}
+
+// Tính offset cho SQL LIMIT
+int offset = (page - 1) * recordsPerPage;
+
+// Lấy danh sách khách hàng theo trang
+List<Customer> customers = customerDAO.getCustomers(offset, recordsPerPage);
+
+// Đưa dữ liệu vào request để hiển thị trên JSP
+request.setAttribute("customers", customers);
+request.setAttribute("currentPage", page);
+request.setAttribute("totalPages", totalPages);
+request.getRequestDispatcher("customer_list.jsp").forward(request, response);
+
+--CSS cột----
+/* Định dạng bảng với chiều rộng cột cố định */
+table {
+    width: 100%;
+    table-layout: fixed; /* Bắt buộc để chiều rộng cột theo CSS */
+    border-collapse: collapse;
+}
+
+/* Thiết lập độ rộng cho từng cột */
+th:nth-child(1),
+td:nth-child(1) {
+    width: 50px; /* Cột 1: 50px */
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+    width: 150px; /* Cột 2: 150px */
+}
+
+th:nth-child(3),
+td:nth-child(3) {
+    width: 200px; /* Cột 3: 200px */
+}
+
+/* Định dạng chung */
+th, td {
+    padding: 8px;
+    text-align: left;
+    border: 1px solid #ddd;
+    overflow: hidden; /* Ngăn tràn chữ */
+    white-space: nowrap; /* Không xuống dòng */
+    text-overflow: ellipsis; /* Hiển thị dấu "..." nếu quá dài */
+}
+
+/* Cố định tiêu đề */
+thead th {
+    background: #f4f4f4;
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+----CSS table---
+/* Định dạng tổng thể */
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+
+/* Bọc toàn bộ form và bảng */
+.container {
+    width: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Form cố định */
+.form-container {
+    position: sticky;
+    top: 0;
+    background: white;
+    padding: 10px;
+    z-index: 100;
+    border-bottom: 2px solid #ddd;
+}
+
+/* Div bọc bảng để giới hạn chiều cao */
+.table-container {
+    max-height: 300px; /* Giới hạn chiều cao bảng */
+    border: 1px solid #ddd;
+    overflow: hidden;
+}
+
+/* Bảng có layout cố định */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* Giữ kích thước cột đồng đều */
+}
+
+/* Cố định tiêu đề */
+thead {
+    display: table;
+    width: 100%;
+}
+
+thead th {
+    background: #f4f4f4;
+    position: sticky;
+    top: 0;
+    z-index: 99;
+    border-bottom: 2px solid #ddd;
+}
+
+/* Chỉ tbody cuộn */
+tbody {
+    display: block;
+    max-height: 250px; /* Điều chỉnh tùy ý */
+    overflow-y: auto;
+    width: 100%;
+}
+
+/* Đảm bảo các dòng tbody giữ đúng kích thước */
+tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+/* Căn chỉnh các ô */
+th, td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
