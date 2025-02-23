@@ -1,0 +1,129 @@
+ <td><a href="T003?action=edit&customerId=<%= customer.getId() %>" class="persist-search"><%= customer.getId() %></a></td>
+-----------------------
+
+
+function goToPage(page) {
+        const params = new URLSearchParams(window.location.search);
+        params.set("page", page);
+        
+        // Loại bỏ các tham số trống để rút gọn URL
+        for (const key of params.keys()) {
+            if (!params.get(key)) {
+                params.delete(key);
+            }
+        }
+
+        window.location.href = "T002?" + params.toString();
+    }
+----------------------
+
+ const searchForm = document.getElementById("searchForm");
+            
+            searchForm.addEventListener("submit", function (event) {
+                event.preventDefault(); // Ngăn chặn gửi form mặc định
+                
+                const formData = new FormData(searchForm);
+                const params = new URLSearchParams();
+
+                for (const [key, value] of formData.entries()) {
+                    if (value.trim() !== "") { // Chỉ thêm tham số nếu có giá trị
+                        params.append(key, value);
+                    }
+                }
+
+                window.location.href = "T002?" + params.toString(); // Chuyển hướng với chỉ các param có giá trị
+            });
+            
+            
+            const inputs = searchForm.querySelectorAll("input, select");
+         // Kiểm tra nếu URL không có điều kiện tìm kiếm thì xóa sessionStorage
+            if (!window.location.search) {
+                sessionStorage.clear();
+                inputs.forEach(input => input.value = ""); // Xóa nội dung ô input
+            }
+            // Lưu giá trị tìm kiếm vào sessionStorage khi nhập
+            inputs.forEach(input => {
+                const value = sessionStorage.getItem(input.name);
+                if (value) {
+                    input.value = value;
+                }
+                input.addEventListener("input", function () {
+                    sessionStorage.setItem(input.name, this.value);
+                });
+                if (input.tagName === "SELECT") {
+                    input.addEventListener("change", function () {
+                        sessionStorage.setItem(input.name, this.value);
+                    });
+                }
+            });
+
+            // Xử lý khi quay lại từ trang Edit (T003)
+            if (sessionStorage.getItem("fromEdit") === "true") {
+                sessionStorage.removeItem("fromEdit"); // Xóa flag để không reload nữa
+                let searchParams = new URLSearchParams(window.location.search);
+                
+                // Nếu URL chưa có params tìm kiếm, thêm vào từ sessionStorage
+                let hasParams = false;
+                inputs.forEach(input => {
+                    if (!searchParams.has(input.name) && input.value) {
+                        searchParams.set(input.name, input.value);
+                        hasParams = true;
+                    }
+                });
+
+                if (hasParams) {
+                    window.location.href = "T002?" + searchParams.toString();
+                }
+            }
+
+            // Khi click vào edit trong T002, đặt flag để biết quay về từ edit
+            document.querySelectorAll(".persist-search").forEach(link => {
+                link.addEventListener("click", function () {
+                    sessionStorage.setItem("fromEdit", "true");
+                });
+            });
+--------------------
+
+
+protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        HttpSession session = request.getSession();
+        int page = 1;
+
+        if (request.getParameter("page") != null) {
+            page = Integer.parseInt(request.getParameter("page"));
+        }
+
+        // Kiểm tra nếu có tìm kiếm mới thì reset session
+        if (request.getParameter("search") != null) {
+            session.removeAttribute("searchCriteria");
+        }
+
+        search searchCriteria = (search) session.getAttribute("searchCriteria");
+        if (searchCriteria == null) {
+            searchCriteria = new search("", "", "", "");
+        }
+
+        // Cập nhật giá trị nếu có trong request
+        if (request.getParameter("customerName") != null) searchCriteria.setCustomerName(request.getParameter("customerName"));
+        if (request.getParameter("sex") != null) searchCriteria.setSex(request.getParameter("sex"));
+        if (request.getParameter("birthdayStart") != null) searchCriteria.setBirthDayFrom(request.getParameter("birthdayStart"));
+        if (request.getParameter("birthdayEnd") != null) searchCriteria.setBirthDayTo(request.getParameter("birthdayEnd"));
+
+        // Lưu vào session
+        session.setAttribute("searchCriteria", searchCriteria);
+
+        // Lấy danh sách khách hàng
+        int totalRecords = customerDAO.getTotalCustomers(searchCriteria.getCustomerName(), searchCriteria.getSex(), searchCriteria.getBirthDayFrom(), searchCriteria.getBirthDayTo());
+        int totalPages = (int) Math.ceil((double) totalRecords / RECORDS_PER_PAGE);
+        page = Math.max(1, Math.min(page, totalPages));
+
+        List<T002> customers = customerDAO.getCustomers((page - 1) * RECORDS_PER_PAGE, RECORDS_PER_PAGE, searchCriteria.getCustomerName(), searchCriteria.getSex(), searchCriteria.getBirthDayFrom(), searchCriteria.getBirthDayTo());
+
+        request.setAttribute("customers", customers);
+        request.setAttribute("currentPage", page);
+        request.setAttribute("totalPages", totalPages);
+        request.setAttribute("searchCriteria", searchCriteria);
+
+        RequestDispatcher dispatcher = request.getRequestDispatcher("views/T002.jsp");
+        dispatcher.forward(request, response);
+    }
