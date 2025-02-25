@@ -1,0 +1,142 @@
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+<%@ taglib uri="http://struts.apache.org/tags-bean" prefix="bean" %>
+<%@ taglib uri="http://struts.apache.org/tags-logic" prefix="logic" %>
+
+<html>
+<head>
+    <title>Đăng nhập</title>
+</head>
+<body>
+    <h2>Đăng nhập</h2>
+    
+    <html:form action="/login" method="post">
+        <table border="1">
+            <tr>
+                <td>Tên đăng nhập:</td>
+                <td><html:text property="user.username" /></td>
+            </tr>
+            <tr>
+                <td>Mật khẩu:</td>
+                <td><html:password property="user.password" /></td>
+            </tr>
+            <tr>
+                <td colspan="2">
+                    <html:submit value="Đăng nhập" />
+                </td>
+            </tr>
+        </table>
+    </html:form>
+
+    <logic:present name="error">
+        <p style="color: red"><bean:write name="error" /></p>
+    </logic:present>
+</body>
+</html>
+
+
+package com.example.model;
+
+import java.io.Serializable;
+
+public class User implements Serializable {
+    private String username;
+    private String password;
+
+    public User() {}
+
+    public User(String username, String password) {
+        this.username = username;
+        this.password = password;
+    }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+}
+
+
+
+
+
+package com.example.action;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+
+import com.example.dao.UserDAO;
+import com.example.model.User;
+
+public class LoginAction extends Action {
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) {
+
+        // Lấy bean "user" từ request
+        User userBean = (User) request.getAttribute("user");
+
+        // Lấy dữ liệu username & password từ bean
+        String username = userBean.getUsername();
+        String password = userBean.getPassword();
+
+        // Kiểm tra trong database
+        UserDAO userDAO = new UserDAO();
+        User user = userDAO.getUserByUsername(username);
+
+        if (user != null && user.getPassword().equals(password)) {
+            HttpSession session = request.getSession();
+            session.setAttribute("loggedInUser", user);
+            return mapping.findForward("success");
+        } else {
+            request.setAttribute("error", "Sai tên đăng nhập hoặc mật khẩu.");
+            return mapping.findForward("fail");
+        }
+    }
+}
+
+
+<struts-config>
+    <form-beans>
+        <form-bean name="user" type="com.example.model.User"/>
+    </form-beans>
+
+    <action-mappings>
+        <action path="/login" 
+                type="com.example.action.LoginAction"
+                name="user"
+                scope="request"
+                validate="false">
+            <forward name="success" path="/pages/home.jsp"/>
+            <forward name="fail" path="/pages/login.jsp"/>
+        </action>
+    </action-mappings>
+</struts-config>
+
+
+
+
+<%@ page import="com.example.model.User" %>
+<%@ page import="javax.servlet.http.HttpSession" %>
+
+<%
+    HttpSession session = request.getSession();
+    User loggedInUser = (User) session.getAttribute("loggedInUser");
+
+    if (loggedInUser == null) {
+        response.sendRedirect("login.jsp");
+    }
+%>
+
+<html>
+<head>
+    <title>Trang chính</title>
+</head>
+<body>
+    <h2>Chào mừng, <%= loggedInUser.getUsername() %>!</h2>
+    <a href="logout.jsp">Đăng xuất</a>
+</body>
+</html>
