@@ -1,4 +1,4 @@
-/* Centering the form */
+/* Centering the form
 .form-container {
     display: flex;
     justify-content: center;
