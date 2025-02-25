@@ -1,0 +1,273 @@
+Link: https://www.youtube.com/watch?v=eeiF1vEzxbc
+
+T002:
+T002Action.java
+package fa.action;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+
+import fa.form.T002Form;
+import fa.service.T002Service;
+import fuji.T002;
+import fuji.search;
+
+import java.util.List;
+
+public class T002Action extends Action {
+    private static final int RECORDS_PER_PAGE = 3;
+    private T002Service customerService = new T002Service();
+
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) throws Exception {
+        HttpSession session = request.getSession();
+        T002Form searchForm = (T002Form) form;
+
+        int page = 1;
+        if (request.getParameter("page") != null) {
+            page = Integer.parseInt(request.getParameter("page"));
+        }
+
+        // Kiểm tra nếu có tìm kiếm mới thì reset session
+        if (request.getParameter("search") != null) {
+            session.removeAttribute("searchCriteria");
+        }
+
+        search searchCriteria = (search) session.getAttribute("searchCriteria");
+        if (searchCriteria == null) {
+            searchCriteria = new search("", "", "", "");
+        }
+
+        // Cập nhật dữ liệu từ form
+        searchCriteria.setCustomerName(searchForm.getCustomerName());
+        searchCriteria.setSex(searchForm.getSex());
+        searchCriteria.setBirthDayFrom(searchForm.getBirthdayStart());
+        searchCriteria.setBirthDayTo(searchForm.getBirthdayEnd());
+
+        // Lưu vào session
+        session.setAttribute("searchCriteria", searchCriteria);
+
+        // Lấy danh sách khách hàng
+        int totalRecords = customerService.getTotalCustomers(searchCriteria);
+        int totalPages = (int) Math.ceil((double) totalRecords / RECORDS_PER_PAGE);
+        page = Math.max(1, Math.min(page, totalPages));
+
+        List<T002> customers = customerService.getCustomers((page - 1) * RECORDS_PER_PAGE, RECORDS_PER_PAGE, searchCriteria);
+
+        request.setAttribute("customers", customers);
+        request.setAttribute("currentPage", page);
+        request.setAttribute("totalPages", totalPages);
+        request.setAttribute("searchCriteria", searchCriteria);
+
+        return mapping.findForward("success");
+    }
+}
+--------------
+T002Form.java
+package fa.form;
+
+import org.apache.struts.action.ActionForm;
+
+@SuppressWarnings("serial")
+public class T002Form extends ActionForm {
+    private String customerName;
+    private String sex;
+    private String birthdayStart;
+    private String birthdayEnd;
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
+
+    public String getSex() {
+        return sex;
+    }
+
+    public void setSex(String sex) {
+        this.sex = sex;
+    }
+
+    public String getBirthdayStart() {
+        return birthdayStart;
+    }
+
+    public void setBirthdayStart(String birthdayStart) {
+        this.birthdayStart = birthdayStart;
+    }
+
+    public String getBirthdayEnd() {
+        return birthdayEnd;
+    }
+
+    public void setBirthdayEnd(String birthdayEnd) {
+        this.birthdayEnd = birthdayEnd;
+    }
+}
+
+--------------
+T002Service.java
+package fa.service;
+
+import java.util.List;
+
+import fa.dao.T002Dao;
+import fuji.T002;
+import fuji.search;
+
+public class T002Service {
+    private T002Dao customerDAO = new T002Dao();
+
+    public List<T002> getCustomers(int start, int total, search searchCriteria) {
+        return customerDAO.getCustomers(start, total, searchCriteria.getCustomerName(), searchCriteria.getSex(),
+                searchCriteria.getBirthDayFrom(), searchCriteria.getBirthDayTo());
+    }
+
+    public int getTotalCustomers(search searchCriteria) {
+        return customerDAO.getTotalCustomers(searchCriteria.getCustomerName(), searchCriteria.getSex(),
+                searchCriteria.getBirthDayFrom(), searchCriteria.getBirthDayTo());
+    }
+}
+
+-------------package fa.dao;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import fa.utils.DBUtils;
+import fuji.T002;
+
+public class T002Dao {
+    public List<T002> getCustomers(int start, int total, String customerName, String sex, String birthdayStart, String birthdayEnd) {
+        List<T002> list = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("SELECT * FROM MSTCUSTOMER WHERE DELETE_YMD IS NULL ");
+        List<Object> params = new ArrayList<>();
+
+        if (customerName != null && !customerName.isEmpty()) {
+            sql.append("AND CUSTOMER_NAME LIKE ? ");
+            params.add("%" + customerName + "%");
+        }
+        if (sex != null && !sex.isEmpty()) {
+            sql.append("AND SEX = ? ");
+            params.add(sex);
+        }
+        if (birthdayStart != null && !birthdayStart.isEmpty()) {
+            sql.append("AND BIRTHDAY >= ? ");
+            params.add(birthdayStart);
+        }
+        if (birthdayEnd != null && !birthdayEnd.isEmpty()) {
+            sql.append("AND BIRTHDAY <= ? ");
+            params.add(birthdayEnd);
+        }
+
+        sql.append("LIMIT ?, ?");
+        params.add(start);
+        params.add(total);
+
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                list.add(new T002(
+                    rs.getInt("CUSTOMER_ID"),
+                    rs.getString("CUSTOMER_NAME"),
+                    rs.getString("SEX"),
+                    rs.getString("BIRTHDAY"),
+                    rs.getString("EMAIL"),
+                    rs.getString("ADDRESS")
+                ));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public int getTotalCustomers(String customerName, String sex, String birthdayStart, String birthdayEnd) {
+        int count = 0;
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM MSTCUSTOMER WHERE DELETE_YMD IS NULL ");
+        List<Object> params = new ArrayList<>();
+
+        if (customerName != null && !customerName.isEmpty()) {
+            sql.append("AND CUSTOMER_NAME LIKE ? ");
+            params.add("%" + customerName + "%");
+        }
+        if (sex != null && !sex.isEmpty()) {
+            sql.append("AND SEX = ? ");
+            params.add(sex);
+        }
+        if (birthdayStart != null && !birthdayStart.isEmpty()) {
+            sql.append("AND BIRTHDAY >= ? ");
+            params.add(birthdayStart);
+        }
+        if (birthdayEnd != null && !birthdayEnd.isEmpty()) {
+            sql.append("AND BIRTHDAY <= ? ");
+            params.add(birthdayEnd);
+        }
+
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                count = rs.getInt(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return count;
+    }
+}
+------------
+T002.jsp
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+<html>
+<head>
+    <title>Quản lý khách hàng</title>
+</head>
+<body>
+    <h2>Danh sách khách hàng</h2>
+    <html:form action="/T002Action">
+        Tên: <html:text property="customerName"/>
+        Giới tính: <html:text property="sex"/>
+        Ngày sinh từ: <html:text property="birthdayStart"/>
+        Đến: <html:text property="birthdayEnd"/>
+        <html:submit value="Tìm kiếm"/>
+    </html:form>
+
+    <table border="1">
+        <tr>
+            <th>ID</th><th>Tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Email</th><th>Địa chỉ</th>
+        </tr>
+        <logic:iterate id="customer" name="customers">
+            <tr>
+                <td><bean:write name="customer" property="id"/></td>
+                <td><bean:write name="customer" property="name"/></td>
+                <td><bean:write name="customer" property="sex"/></td>
+                <td><bean:write name="customer" property="birthday"/></td>
+                <td><bean:write name="customer" property="email"/></td>
+                <td><bean:write name="customer" property="address"/></td>
+            </tr>
+        </logic:iterate>
+    </table>
+</body>
+</html>
