@@ -1,4 +1,48 @@
 Link: https://www.youtube.com/watch?v=eeiF1vEzxbc
+package action;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+import dto.T001Bean;
+import service.T001Service;
+
+public class T001Action extends Action {
+    
+    private T001Service loginService = new T001Service();
+
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form, 
+                                 HttpServletRequest request, HttpServletResponse response) {
+
+        // Ép kiểu form thành bean
+        T001Bean loginBean = (T001Bean) form;
+
+        // Lấy giá trị từ form
+        String userId = loginBean.getTxtUserId();
+        String password = loginBean.getTxtPassword();
+
+        // Kiểm tra đăng nhập qua service
+        boolean isValid = loginService.checkLogin(userId, password);
+
+        if (isValid) {
+            // Đăng nhập thành công → Chuyển hướng đến T002.jsp
+            return mapping.findForward("success");
+        } else {
+            // Đăng nhập thất bại → Gửi lỗi về form
+            request.setAttribute("loginError", "User ID hoặc Password không đúng!");
+            return mapping.findForward("failure");
+        }
+    }
+}
+
+
+
+
+
 
 T002:
 T002Action.java
