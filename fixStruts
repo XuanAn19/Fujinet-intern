@@ -1,0 +1,20 @@
+<struts-config>
+    <form-beans>
+        <form-bean name="T001Bean" type="action.dto.T001Bean" />
+    </form-beans>
+
+    <action-mappings>
+        <action path="/login" 
+                type="action.LoginAction" 
+                name="T001Bean" 
+                scope="request" 
+                input="/WEB-INF/jsp/T001.jsp">
+            <forward name="success" path="/WEB-INF/jsp/T002.jsp"/>
+            <forward name="failure" path="/WEB-INF/jsp/T001.jsp"/>
+        </action>
+    </action-mappings>
+</struts-config>
+
+<jsp:forward page="/login.do"/>
+
+
