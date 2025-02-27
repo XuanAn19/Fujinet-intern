@@ -102,3 +102,142 @@ public class CheckJDBCDrivers {
     }
 }
 
+--------
+public class T002Action extends DispatchAction {
+    
+    public ActionForward delete(ActionMapping mapping, ActionForm form,
+                                HttpServletRequest request, HttpServletResponse response) throws Exception {
+        String customerIds = request.getParameter("customerIds");
+        if (customerIds != null && !customerIds.isEmpty()) {
+            String[] idsArray = customerIds.split(",");
+            T002Service service = new T002Service();
+            boolean isDeleted = service.deleteCustomers(idsArray);
+
+            response.setContentType("application/json");
+            PrintWriter out = response.getWriter();
+            if (isDeleted) {
+                out.print("{\"success\": true}");
+            } else {
+                out.print("{\"success\": false}");
+            }
+            out.flush();
+            return null; // Không cần forward trang
+        }
+
+        return mapping.findForward("error");
+    }
+}
+
+
+
+
+
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+<%@ taglib uri="http://struts.apache.org/tags-bean" prefix="bean" %>
+<%@ taglib uri="http://struts.apache.org/tags-logic" prefix="logic" %>
+<html>
+<head>
+    <title>Danh sách khách hàng</title>
+    <script>
+        function deleteCustomers() {
+            let ids = [];
+            document.querySelectorAll('input[name="ids"]:checked').forEach(checkbox => {
+                ids.push(checkbox.value);
+            });
+
+            if (ids.length === 0) {
+                alert("Vui lòng chọn khách hàng cần xóa!");
+                return;
+            }
+
+            fetch('T002.do?method=delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ ids: ids })
+            }).then(response => location.reload());
+        }
+    </script>
+</head>
+<body>
+    <h2>Danh sách khách hàng</h2>
+
+    <!-- Form tìm kiếm -->
+    <html:form action="/T002.do?method=list" method="get">
+        <label>Tên:</label>
+        <html:text property="name" />
+        <label>Giới tính:</label>
+        <html:select property="sex">
+            <html:option value="">Tất cả</html:option>
+            <html:option value="M">Nam</html:option>
+            <html:option value="F">Nữ</html:option>
+        </html:select>
+        <html:submit value="Tìm kiếm" />
+    </html:form>
+
+    <!-- Danh sách khách hàng -->
+    <table border="1">
+        <tr>
+            <th>Chọn</th>
+            <th>ID</th>
+            <th>Tên</th>
+            <th>Giới tính</th>
+            <th>Email</th>
+            <th>Địa chỉ</th>
+        </tr>
+        <logic:iterate id="customer" name="customers">
+            <tr>
+                <td><input type="checkbox" name="ids" value="<bean:write name='customer' property='id'/>"></td>
+                <td><bean:write name="customer" property="id"/></td>
+                <td><bean:write name="customer" property="name"/></td>
+                <td><bean:write name="customer" property="sex"/></td>
+                <td><bean:write name="customer" property="email"/></td>
+                <td><bean:write name="customer" property="address"/></td>
+            </tr>
+        </logic:iterate>
+    </table>
+
+    <button onclick="deleteCustomers()">Xóa đã chọn</button>
+</body>
+</html>
+
+
+<action-mappings>
+    <!-- Xử lý danh sách khách hàng -->
+    <action path="/T002" type="action.T002Action" parameter="method">
+        <forward name="success" path="/WEB-INF/jsp/T002.jsp"/>
+        <forward name="error" path="/WEB-INF/jsp/error.jsp"/>
+    </action>
+</action-mappings>
+
+
+function deleteCustomers() {
+    let selectedIds = [];
+    document.querySelectorAll('input[name="customerIds"]:checked').forEach((checkbox) => {
+        selectedIds.push(checkbox.value);
+    });
+
+    if (selectedIds.length === 0) {
+        alert("Vui lòng chọn khách hàng để xóa!");
+        return;
+    }
+
+    fetch("T002.do?method=delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "customerIds=" + selectedIds.join(","),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert("Xóa thành công!");
+            location.reload();
+        } else {
+            alert("Xóa thất bại!");
+        }
+    })
+    .catch(error => console.error("Lỗi khi xóa:", error));
+}
+
+
+
+
