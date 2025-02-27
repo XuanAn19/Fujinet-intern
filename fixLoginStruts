@@ -60,3 +60,45 @@ jsp
     </p>
 </body>
 </html>
+
+fix sql------
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+public class OldSQLServerConnection {
+    public static void main(String[] args) {
+        String url = "jdbc:sqlserver://localhost:1433;databaseName=yourDB;";
+        String user = "sa";
+        String password = "yourPassword";
+
+        try {
+            // Đăng ký driver cũ thủ công
+            DriverManager.registerDriver((java.sql.Driver) Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver").newInstance());
+
+            // Kết nối database
+            Connection conn = DriverManager.getConnection(url, user, password);
+            System.out.println("Kết nối thành công!");
+
+            // Đóng kết nối
+            conn.close();
+        } catch (Exception e) {
+            System.out.println("Lỗi kết nối: " + e.getMessage());
+        }
+    }
+}
+
+
+kiểm tra load chưa 
+import java.sql.DriverManager;
+import java.util.Enumeration;
+
+public class CheckJDBCDrivers {
+    public static void main(String[] args) {
+        Enumeration<java.sql.Driver> drivers = DriverManager.getDrivers();
+        while (drivers.hasMoreElements()) {
+            System.out.println("Driver load: " + drivers.nextElement().getClass().getName());
+        }
+    }
+}
+
