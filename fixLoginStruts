@@ -1,0 +1,62 @@
+web.xml
+<filter>
+    <filter-name>CharacterEncodingFilter</filter-name>
+    <filter-class>org.apache.catalina.filters.SetCharacterEncodingFilter</filter-class>
+    <init-param>
+        <param-name>encoding</param-name>
+        <param-value>UTF-8</param-value>
+    </init-param>
+    <init-param>
+        <param-name>ignore</param-name>
+        <param-value>false</param-value>
+    </init-param>
+</filter>
+
+<filter-mapping>
+    <filter-name>CharacterEncodingFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+
+
+
+action.java
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.apache.struts.action.*;
+
+public class T001Action extends Action {
+    public ActionForward execute(ActionMapping mapping, ActionForm form, 
+                                 HttpServletRequest request, HttpServletResponse response) 
+                                 throws Exception {
+        // Đặt encoding cho request
+        request.setCharacterEncoding("UTF-8");
+        response.setCharacterEncoding("UTF-8");
+
+        // Giả sử có lỗi login
+        String errorMessage = "ユーザー名またはパスワードが間違っています"; // Tiếng Nhật
+        request.setAttribute("loginError", errorMessage);
+
+        return mapping.findForward("errorPage"); // Chuyển đến error.jsp
+    }
+}
+  
+
+
+
+jsp
+
+
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng nhập thất bại</title>
+</head>
+<body>
+    <h2>Lỗi đăng nhập:</h2>
+    <p style="color: red;">
+        <%= request.getAttribute("loginError") %>
+    </p>
+</body>
+</html>
