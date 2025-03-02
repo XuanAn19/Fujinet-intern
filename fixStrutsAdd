@@ -1,0 +1,185 @@
+<action path="/T003"
+    type="action.T003DispatchAction"
+    name="T003Form"
+    parameter="method"
+    scope="request"
+    validate="false">
+    <forward name="success" path="/WEB-INF/jsp/T003.jsp"/>
+    <forward name="list" path="/T002.do"/>
+</action>
+
+
+
+
+
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+
+<html>
+<head>
+    <title>Customer List</title>
+</head>
+<body>
+    <h2>Customer List</h2>
+    
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Sex</th>
+            <th>Birth Date</th>
+            <th>Email</th>
+            <th>Address</th>
+            <th>Action</th>
+        </tr>
+        
+        <logic:iterate id="customer" name="customerList">
+            <tr>
+                <td>
+                    <html:link action="/T003.do?method=edit&id=${customer.id}">
+                        <bean:write name="customer" property="id"/>
+                    </html:link>
+                </td>
+                <td><bean:write name="customer" property="name"/></td>
+                <td><bean:write name="customer" property="sex"/></td>
+                <td><bean:write name="customer" property="birthday"/></td>
+                <td><bean:write name="customer" property="email"/></td>
+                <td><bean:write name="customer" property="address"/></td>
+                <td>
+                    <html:link action="/T003.do?method=edit&id=${customer.id}">Edit</html:link>
+                </td>
+            </tr>
+        </logic:iterate>
+    </table>
+
+    <br>
+    <html:link action="/T003.do?method=addNew">Add New Customer</html:link>
+</body>
+</html>
+
+
+package action;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.struts.actions.DispatchAction;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+
+import form.T003Form;
+import service.T003Service;
+import dto.T002;
+
+public class T003DispatchAction extends DispatchAction {
+    private T003Service service = new T003Service();
+
+    // 1. Mở form Add New (Form trống)
+    public ActionForward addNew(ActionMapping mapping, ActionForm form,
+                                HttpServletRequest request, HttpServletResponse response) {
+        T003Form customerForm = (T003Form) form;
+        customerForm.setId(null);
+        customerForm.setName("");
+        customerForm.setSex("");
+        customerForm.setBirthDate("");
+        customerForm.setEmail("");
+        customerForm.setAddress("");
+        customerForm.setAction("add");
+
+        return mapping.findForward("success");
+    }
+
+    // 2. Mở form Edit (Load dữ liệu theo ID)
+    public ActionForward edit(ActionMapping mapping, ActionForm form,
+                              HttpServletRequest request, HttpServletResponse response) {
+        String id = request.getParameter("id");
+        T002 customer = service.getCustomerById(id);
+
+        if (customer != null) {
+            T003Form customerForm = (T003Form) form;
+            customerForm.setId(customer.getId());
+            customerForm.setName(customer.getName());
+            customerForm.setSex(customer.getSex());
+            customerForm.setBirthDate(customer.getBirthday());
+            customerForm.setEmail(customer.getEmail());
+            customerForm.setAddress(customer.getAddress());
+            customerForm.setAction("edit");
+        }
+
+        return mapping.findForward("success");
+    }
+
+    // 3. Thêm mới khách hàng
+    public ActionForward add(ActionMapping mapping, ActionForm form,
+                             HttpServletRequest request, HttpServletResponse response) {
+        T003Form customerForm = (T003Form) form;
+        T002 customer = new T002(
+            customerForm.getId(),
+            customerForm.getName(),
+            customerForm.getSex(),
+            customerForm.getBirthDate(),
+            customerForm.getEmail(),
+            customerForm.getAddress()
+        );
+
+        boolean result = service.addCustomer(customer);
+        if (result) {
+            request.setAttribute("message", "Customer added successfully!");
+            return mapping.findForward("list");
+        } else {
+            request.setAttribute("errorMessage", "Failed to add customer.");
+            return mapping.findForward("success");
+        }
+    }
+
+    // 4. Cập nhật khách hàng
+    public ActionForward update(ActionMapping mapping, ActionForm form,
+                                HttpServletRequest request, HttpServletResponse response) {
+        T003Form customerForm = (T003Form) form;
+        T002 customer = new T002(
+            customerForm.getId(),
+            customerForm.getName(),
+            customerForm.getSex(),
+            customerForm.getBirthDate(),
+            customerForm.getEmail(),
+            customerForm.getAddress()
+        );
+
+        boolean result = service.updateCustomer(customer);
+        if (result) {
+            request.setAttribute("message", "Customer updated successfully!");
+            return mapping.findForward("list");
+        } else {
+            request.setAttribute("errorMessage", "Failed to update customer.");
+            return mapping.findForward("success");
+        }
+    }
+}
+
+<html:form action="/T003.do?method=<bean:write name='T003Form' property='action'/>">
+    <html:hidden property="id"/>
+    <html:hidden property="action"/>
+
+    <label>Name:</label>
+    <html:text property="name"/>
+    <br/>
+
+    <label>Sex:</label>
+    <html:select property="sex">
+        <html:option value="">-- Select --</html:option>
+        <html:option value="0">Male</html:option>
+        <html:option value="1">Female</html:option>
+    </html:select>
+    <br/>
+
+    <label>Email:</label>
+    <html:text property="email"/>
+    <br/>
+
+    <label>Address:</label>
+    <html:textarea property="address"/>
+    <br/>
+
+    <html:submit value="Save"/>
+</html:form>
+
