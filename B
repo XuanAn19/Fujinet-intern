@@ -1,3 +1,25 @@
+label.required {
+    position: relative;
+    display: inline-block;
+    font-weight: bold;
+}
+
+label.required::before {
+    content: "";
+    position: absolute;
+    top: -5px;  /* Điều chỉnh vị trí */
+    left: -5px; /* Điều chỉnh vị trí */
+    width: 10px;
+    height: 10px;
+    background-color: green; /* Màu tam giác */
+    clip-path: polygon(0 0, 100% 0, 0 100%); /* Tạo tam giác */
+}
+
+
+
+
+
+
 /* Centering the form
 .form-container {
     display: flex; 
