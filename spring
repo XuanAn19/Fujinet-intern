@@ -1,0 +1,106 @@
+hibernate.cfg.xml
+<!DOCTYPE hibernate-configuration PUBLIC  
+    "-//Hibernate/Hibernate Configuration DTD 3.0//EN"  
+    "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">  
+
+<hibernate-configuration>  
+    <session-factory>  
+        <property name="hibernate.dialect">org.hibernate.dialect.SQLServerDialect</property>  
+        <property name="hibernate.connection.driver_class">com.microsoft.sqlserver.jdbc.SQLServerDriver</property>  
+        <property name="hibernate.connection.url">jdbc:sqlserver://localhost:1433;databaseName=YourDatabase</property>  
+        <property name="hibernate.connection.username">your_username</property>  
+        <property name="hibernate.connection.password">your_password</property>  
+        <property name="hibernate.show_sql">true</property>  
+        <property name="hibernate.hbm2ddl.auto">update</property>  
+    </session-factory>  
+</hibernate-configuration>
+
+
+__--------------
+applicationContext.xml
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans  
+       http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!-- DataSource -->
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+        <property name="driverClassName" value="com.microsoft.sqlserver.jdbc.SQLServerDriver"/>
+        <property name="url" value="jdbc:sqlserver://localhost:1433;databaseName=YourDatabase"/>
+        <property name="username" value="your_username"/>
+        <property name="password" value="your_password"/>
+    </bean>
+
+    <!-- Hibernate SessionFactory -->
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="configLocation" value="classpath:hibernate.cfg.xml"/>
+    </bean>
+
+    <!-- DAO -->
+    <bean id="t001Dao" class="your.package.dao.T001Dao">
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+
+    <!-- Service -->
+    <bean id="t001Service" class="your.package.service.T001Service">
+        <property name="t001Dao" ref="t001Dao"/>
+    </bean>
+
+    <!-- Struts Action -->
+    <bean id="/login" class="your.package.action.T001Action">
+        <property name="t001Service" ref="t001Service"/>
+    </bean>
+</beans>
+
+------------T001 model
+@Entity
+@Table(name = "users")
+public class T001 {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
+    @Column(name = "username", unique = true, nullable = false)
+    private String username;
+
+    @Column(name = "password", nullable = false)
+    private String password;
+
+    @Column(name = "role", nullable = false)
+    private String role;
+
+    // Getters và Setters
+}
+
+
+____ truy vấn DAO 
+@Repository
+public class T001Dao {
+
+    @Autowired
+    private SessionFactory sessionFactory;
+
+    public T001 findByUsername(String username) {
+        Query<T001> query = sessionFactory.getCurrentSession()
+            .createQuery("FROM T001 WHERE username = :username", T001.class);
+        query.setParameter("username", username);
+        return query.uniqueResult();
+    }
+}
+
+
+._----- struts-config 
+<action path="/login"
+        type="org.springframework.web.struts.DelegatingActionProxy"
+        name="t001Form"
+        scope="request"
+        validate="false"
+        input="/T001.jsp">
+    <forward name="success" path="/home.jsp" redirect="true"/>
+    <forward name="failure" path="/T001.jsp"/>
+</action>
+
+
