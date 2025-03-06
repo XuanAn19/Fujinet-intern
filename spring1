@@ -1,0 +1,194 @@
+package fjs.cs.entity;
+
+import javax.persistence.*;
+
+@Entity
+@Table(name = "MSTUSER")
+public class MstUser {
+
+    @Id
+    @Column(name = "USER_ID", unique = true, nullable = false)
+    private String userId;
+
+    @Column(name = "PASSWORD", nullable = false)
+    private String password;
+
+    @Column(name = "PSN_CD", nullable = false)
+    private String psnCd;
+
+    // Các cột khác (USERNAME, DELETE_YMD, INSERT_PSN_CD, UPDATE_YMD, UPDATE_PSN_CD) nếu cần
+
+    // Getters & Setters
+    public String getUserId() {
+        return userId;
+    }
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+    
+    public String getPassword() {
+        return password;
+    }
+    public void setPassword(String password) {
+        this.password = password;
+    }
+    
+    public String getPsnCd() {
+        return psnCd;
+    }
+    public void setPsnCd(String psnCd) {
+        this.psnCd = psnCd;
+    }
+}
+
+
+------
+
+dao
+
+package fjs.cs.dao;
+
+import fjs.cs.entity.MstUser;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.query.Query;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class MstUserDao {
+
+    @Autowired
+    private SessionFactory sessionFactory;
+
+    private Session getSession() {
+        return sessionFactory.getCurrentSession();
+    }
+
+    public MstUser findByUserId(String userId) {
+        Query<MstUser> query = getSession().createQuery("FROM MstUser WHERE userId = :userId", MstUser.class);
+        query.setParameter("userId", userId);
+        return query.uniqueResult();
+    }
+}
+
+
+package fjs.cs.service;
+
+import fjs.cs.dao.MstUserDao;
+import fjs.cs.entity.MstUser;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class MstUserService {
+
+    @Autowired
+    private MstUserDao mstUserDao;
+
+    /**
+     * Nếu đăng nhập thành công thì trả về đối tượng MstUser, ngược lại trả về null.
+     */
+    public MstUser login(String userId, String password) {
+        MstUser user = mstUserDao.findByUserId(userId);
+        if (user != null && user.getPassword().equals(password)) {
+            return user;
+        }
+        return null;
+    }
+}
+
+
+action
+
+
+
+package fjs.cs.action;
+
+import fjs.cs.form.LoginForm;
+import fjs.cs.entity.MstUser;
+import fjs.cs.service.MstUserService;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.apache.struts.action.*;
+
+public class T001Action extends Action {
+
+    private MstUserService mstUserService;
+
+    public void setMstUserService(MstUserService mstUserService) {
+        this.mstUserService = mstUserService;
+    }
+
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) {
+        LoginForm loginForm = (LoginForm) form;
+        String userId = loginForm.getUserId();
+        String password = loginForm.getPassword();
+
+        MstUser user = mstUserService.login(userId, password);
+        if (user != null) {
+            // Lưu USER_ID và PSN_CD vào session
+            request.getSession().setAttribute("userId", user.getUserId());
+            request.getSession().setAttribute("psnCd", user.getPsnCd());
+            return mapping.findForward("success");
+        } else {
+            request.setAttribute("error", "Invalid User ID or Password.");
+            return mapping.findForward("failure");
+        }
+    }
+}
+
+struts-config 
+
+<struts-config>
+    <form-beans>
+        <form-bean name="loginForm" type="fjs.cs.form.LoginForm"/>
+    </form-beans>
+
+    <action-mappings>
+        <action path="/T001"
+                type="org.springframework.web.struts.DelegatingActionProxy"
+                name="loginForm"
+                scope="request"
+                validate="false"
+                input="/WEB-INF/jsp/T001.jsp">
+            <forward name="success" path="/WEB-INF/jsp/home.jsp" redirect="true"/>
+            <forward name="failure" path="/WEB-INF/jsp/T001.jsp"/>
+        </action>
+    </action-mappings>
+</struts-config>
+
+
+applicationC
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans  
+       http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+        <property name="driverClassName" value="com.microsoft.sqlserver.jdbc.SQLServerDriver"/>
+        <property name="url" value="jdbc:sqlserver://localhost:1433;databaseName=MSTUSER"/>
+        <property name="username" value="your_username"/>
+        <property name="password" value="your_password"/>
+    </bean>
+
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="configLocation" value="classpath:hibernate.cfg.xml"/>
+    </bean>
+
+    <bean id="mstUserDao" class="fjs.cs.dao.MstUserDao">
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+
+    <bean id="mstUserService" class="fjs.cs.service.MstUserService">
+        <property name="mstUserDao" ref="mstUserDao"/>
+    </bean>
+
+    <bean id="/T001" class="fjs.cs.action.T001Action">
+        <property name="mstUserService" ref="mstUserService"/>
+    </bean>
+</beans>
