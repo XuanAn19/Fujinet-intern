@@ -100,3 +100,135 @@ applicationC
         <property name="basePackages" value="fjs.cs.service"/>
     </bean>
 </beans>
+
+
+---web
+
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://java.sun.com/xml/ns/j2ee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee
+                             http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd"
+         version="2.4">
+
+    <!-- Struts Action Servlet -->
+    <servlet>
+        <servlet-name>action</servlet-name>
+        <servlet-class>org.apache.struts.action.ActionServlet</servlet-class>
+        <init-param>
+            <param-name>config</param-name>
+            <param-value>/WEB-INF/struts-config.xml</param-value>
+        </init-param>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>action</servlet-name>
+        <url-pattern>*.do</url-pattern>
+    </servlet-mapping>
+
+    <!-- Spring Context -->
+    <listener>
+        <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+    </listener>
+
+    <context-param>
+        <param-name>contextConfigLocation</param-name>
+        <param-value>/WEB-INF/applicationContext.xml</param-value>
+    </context-param>
+
+</web-app>
+
+
+---strus 
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE struts-config PUBLIC
+    "-//Apache Software Foundation//DTD Struts Configuration 1.2//EN"
+    "http://struts.apache.org/dtds/struts-config_1_2.dtd">
+
+<struts-config>
+    <form-beans>
+        <form-bean name="T001Form" type="fjs.cs.form.T001Form"/>
+    </form-beans>
+
+    <action-mappings>
+        <action path="/T001"
+                type="fjs.cs.action.T001Action"
+                name="T001Form"
+                scope="request"
+                validate="false"
+                input="/WEB-INF/jsp/T001.jsp">
+            <forward name="success" path="/WEB-INF/jsp/home.jsp"/>
+            <forward name="failure" path="/WEB-INF/jsp/T001.jsp"/>
+        </action>
+    </action-mappings>
+</struts-config>
+
+
+---app
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN"
+    "http://www.springframework.org/dtd/spring-beans.dtd">
+
+<beans>
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+        <property name="configLocation">
+            <value>/WEB-INF/hibernate.cfg.xml</value>
+        </property>
+    </bean>
+
+    <bean id="T001Dao" class="fjs.cs.dao.impl.T001DaoImpl">
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+
+    <bean id="T001Service" class="fjs.cs.service.impl.T001ServiceImpl">
+        <property name="T001Dao" ref="T001Dao"/>
+    </bean>
+</beans>
+
+
+----hiberna
+<hibernate-configuration>
+    <session-factory>
+        <property name="hibernate.connection.driver_class">com.microsoft.sqlserver.jdbc.SQLServerDriver</property>
+        <property name="hibernate.connection.url">jdbc:sqlserver://localhost:1433;databaseName=MSTUSER</property>
+        <property name="hibernate.connection.username">sa</property>
+        <property name="hibernate.connection.password">your_password</property>
+        <property name="hibernate.dialect">org.hibernate.dialect.SQLServerDialect</property>
+        <property name="hibernate.show_sql">true</property>
+
+        <mapping resource="fjs/cs/model/MSTUSER.hbm.xml"/>
+    </session-factory>
+</hibernate-configuration>
+
+
+---mstuser.hbm.cf
+<hibernate-mapping>
+    <class name="fjs.cs.model.MSTUSER" table="MSTUSER">
+        <id name="userId" column="USER_ID">
+            <generator class="assigned"/>
+        </id>
+        <property name="password" column="PASSWORD"/>
+        <property name="username" column="USERNAME"/>
+        <property name="psnCd" column="PSN_CD"/>
+    </class>
+</hibernate-mapping>
+
+
+modle 
+package fjs.cs.model;
+
+import java.io.Serializable;
+
+public class MSTUSER implements Serializable {
+    private String userId;
+    private String password;
+    private String username;
+    private String psnCd;
+
+    // Getters & Setters
+}
+
+
+
+
