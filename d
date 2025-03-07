@@ -1,3 +1,79 @@
+
+package fjs.cs.dao.impl;
+
+import fjs.cs.dao.T001Dao;
+import fjs.cs.model.T001;
+import fjs.cs.config.HibernateUtil;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+
+import java.util.List;
+
+public class T001DaoImpl implements T001Dao {
+
+    @Override
+    public List<T001> getAllUsers() {
+        List<T001> users = null;
+        Transaction transaction = null;
+
+        try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            transaction = session.beginTransaction();
+
+            // Lấy danh sách toàn bộ user từ MSTUSER
+            users = session.createQuery("FROM T001", T001.class).list();
+
+            transaction.commit();
+        } catch (Exception e) {
+            if (transaction != null) transaction.rollback();
+            e.printStackTrace();
+        }
+
+        return users;
+    }
+}
+
+
+------
+package fjs.cs.config;
+
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
+
+public class HibernateUtil {
+    private static final SessionFactory sessionFactory;
+
+    static {
+        try {
+            // Load cấu hình Hibernate từ hibernate.cfg.xml
+            sessionFactory = new Configuration().configure("hibernate.cfg.xml").buildSessionFactory();
+        } catch (Throwable ex) {
+            System.err.println("Lỗi khởi tạo SessionFactory: " + ex);
+            throw new ExceptionInInitializerError(ex);
+        }
+    }
+
+    public static SessionFactory getSessionFactory() {
+        return sessionFactory;
+    }
+
+    public static Session getSession() {
+        return sessionFactory.openSession();
+    }
+
+    public static void closeSession(Session session) {
+        if (session != null) {
+            session.close();
+        }
+    }
+}
+
+
+
+------
+
+
+
 package fjs.cs.test;  
 
 import org.hibernate.Session;  
