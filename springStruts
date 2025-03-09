@@ -1,0 +1,151 @@
+<web-app xmlns="http://java.sun.com/xml/ns/j2ee" version="2.4">
+    <display-name>Struts1-Spring Integration</display-name>
+
+    <!-- Cấu hình Struts -->
+    <servlet>
+        <servlet-name>action</servlet-name>
+        <servlet-class>org.apache.struts.action.ActionServlet</servlet-class>
+        <init-param>
+            <param-name>config</param-name>
+            <param-value>/WEB-INF/struts-config.xml</param-value>
+        </init-param>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>action</servlet-name>
+        <url-pattern>*.do</url-pattern>
+    </servlet-mapping>
+
+    <!-- Kích hoạt Spring -->
+    <listener>
+        <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+    </listener>
+
+    <context-param>
+        <param-name>contextConfigLocation</param-name>
+        <param-value>/WEB-INF/applicationContext.xml</param-value>
+    </context-param>
+
+</web-app>
+
+
+-------WEB-INF/applicationContext.xml------
+<beans xmlns="http://www.springframework.org/schema/beans">
+    <!-- Cấu hình Service -->
+    <bean id="t001Service" class="fjs.cs.service.impl.T001ServiceImpl"/>
+
+    <!-- Cấu hình Action và Inject Service -->
+    <bean id="t001Action" class="fjs.cs.action.T001Action">
+        <property name="t001Service" ref="t001Service"/>
+    </bean>
+</beans>
+-----WEB-INF/struts-config.xml-----
+<struts-config>
+    <form-beans>
+        <form-bean name="T001Form" type="fjs.cs.form.T001Form"/>
+    </form-beans>
+
+    <action-mappings>
+        <action path="/login" type="fjs.cs.action.T001Action" name="T001Form" scope="request" validate="false">
+            <forward name="success" path="/WEB-INF/jsp/T001.jsp"/>
+            <forward name="error" path="/error.jsp"/>
+        </action>
+    </action-mappings>
+</struts-config>
+----Action--
+package fjs.cs.action;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+import fjs.cs.service.T001Service;
+
+public class T001Action extends Action {
+    private T001Service t001Service;
+
+    public void setT001Service(T001Service t001Service) {
+        this.t001Service = t001Service;
+    }
+
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) {
+        System.out.println("Spring đã Inject Service thành công!");
+        return mapping.findForward("success");
+    }
+}
+
+----service---
+package fjs.cs.service.impl;
+
+import fjs.cs.service.T001Service;
+
+public class T001ServiceImpl implements T001Service {
+    @Override
+    public void testService() {
+        System.out.println("T001Service đang hoạt động!");
+    }
+}
+package fjs.cs.service;
+
+public interface T001Service {
+    void testService();
+}
+
+-------jsp--
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<html>
+<head>
+    <title>Spring Struts Test</title>
+</head>
+<body>
+    <h2>Spring đã tích hợp với Struts 1 thành công!</h2>
+</body>
+</html>
+--------------------------
+Hibernate 3.2.7.ga (ORM)
+✔ hibernate3.jar
+✔ hibernate-commons-annotations-3.2.0.ga.jar
+✔ hibernate-entitymanager-3.3.2.GA.jar
+✔ hibernate-validator-3.1.0.GA.jar
+✔ dom4j-1.6.1.jar
+✔ cglib-2.1.3.jar
+✔ antlr-2.7.7.jar
+
+🔹 Spring 2.5.6 (Quản lý Bean, Transaction)
+✔ spring-core-2.5.6.jar
+✔ spring-beans-2.5.6.jar
+✔ spring-context-2.5.6.jar
+✔ spring-tx-2.5.6.jar
+✔ spring-orm-2.5.6.jar
+✔ spring-struts-2.5.6.jar
+
+🔹 Struts 1.2 (MVC Framework)
+✔ struts.jar
+✔ struts-core-1.3.10.jar
+✔ struts-legacy-1.3.10.jar
+✔ struts-tiles-1.3.10.jar
+✔ struts-validator-1.3.10.jar
+
+🔹 JDBC + Kết nối Database (MySQL, SQL Server, Oracle)
+✔ (Chọn 1 driver phù hợp với database bạn dùng)
+
+MySQL: mysql-connector-java-5.1.49.jar
+SQL Server: sqljdbc4.jar
+Oracle: ojdbc6.jar
+🔹 Các thư viện hỗ trợ khác
+✔ commons-logging-1.1.1.jar (log cho Spring, Hibernate)
+✔ commons-lang-2.4.jar (hỗ trợ String, Date)
+✔ commons-collections-3.2.1.jar
+✔ commons-digester-1.8.jar
+✔ commons-validator-1.3.1.jar
+✔ jakarta-oro-2.0.8.jar
+✔ jstl-1.2.jar (JSP JSTL support)
+
+
+
