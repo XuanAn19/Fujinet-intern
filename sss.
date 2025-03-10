@@ -248,5 +248,132 @@ public boolean addCustomer(Customer customer, int userInsert) {
 <context:component-scan base-package="fuji.cs.*" />
 <bean class="org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor"/>
 
+------------------------
+T001
+------------------------
+<bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+    <property name="configLocation" value="classpath:hibernate.cfg.xml" />
+</bean>
+
+<bean id="t002Dao" class="fuji.cs.dao.T002Dao">
+    <property name="sessionFactory" ref="sessionFactory" />
+</bean>
+
+<bean id="t002Service" class="fuji.cs.service.T002Service">
+    <property name="t002Dao" ref="t002Dao" />
+</bean>
+----
+package fuji.cs.dao;
+
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.springframework.transaction.annotation.Transactional;
+import fuji.cs.entity.User;
+
+public class T002Dao {
+    private SessionFactory sessionFactory;
+
+    // Setter để Spring inject sessionFactory
+    public void setSessionFactory(SessionFactory sessionFactory) {
+        this.sessionFactory = sessionFactory;
+    }
+
+    public int checkUser(T002Dto dto) {
+        int count = 0;
+        Session session = sessionFactory.openSession();
+        try {
+            String hql = "SELECT COUNT(*) FROM MTUSER WHERE USERID = :userId AND PASSWORD = :password AND DELETE_YMD IS NULL";
+            Long result = (Long) session.createQuery(hql)
+                    .setParameter("userId", dto.getUSERID())
+                    .setParameter("password", dto.getPASSWORD())
+                    .uniqueResult();
+            count = result.intValue();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            session.close();
+        }
+        return count;
+    }
+
+    public User getUser(T002Dto dto) {
+        User user = null;
+        Session session = sessionFactory.openSession();
+        try {
+            String hql = "FROM User WHERE USERID = :userId AND PASSWORD = :password AND DELETE_YMD IS NULL";
+            user = (User) session.createQuery(hql)
+                    .setParameter("userId", dto.getUSERID())
+                    .setParameter("password", dto.getPASSWORD())
+                    .uniqueResult();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            session.close();
+        }
+        return user;
+    }
+}
+
+
+package fuji.cs.service;
+
+import fuji.cs.dao.T002Dao;
+import fuji.cs.entity.User;
+import fuji.cs.dto.T002Dto;
+
+public class T002Service {
+    private T002Dao t002Dao;
+
+    public void setT002Dao(T002Dao t002Dao) {
+        this.t002Dao = t002Dao;
+    }
+
+    public int checkUser(T002Dto dto) {
+        return t002Dao.checkUser(dto);
+    }
+
+    public User getUser(T002Dto dto) {
+        return t002Dao.getUser(dto);
+    }
+}
+package fuji.cs.action;
+
+import fuji.cs.service.T002Service;
+import fuji.cs.dto.T002Dto;
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.context.support.WebApplicationContextUtils;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+public class T002Action extends Action {
+    private T002Service t002Service;
+
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form, HttpServletRequest request,
+                                 HttpServletResponse response) {
+        // Lấy Spring ApplicationContext
+        if (t002Service == null) {
+            WebApplicationContext context = WebApplicationContextUtils.getRequiredWebApplicationContext(
+                    servlet.getServletContext());
+            t002Service = (T002Service) context.getBean("t002Service");
+        }
+
+        T002Dto dto = (T002Dto) form;
+        int userExists = t002Service.checkUser(dto);
+
+        if (userExists > 0) {
+            request.setAttribute("message", "User found!");
+            return mapping.findForward("success");
+        } else {
+            request.setAttribute("message", "User not found!");
+            return mapping.findForward("error");
+        }
+    }
+}
 
 
