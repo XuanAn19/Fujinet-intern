@@ -1,0 +1,252 @@
+<!DOCTYPE hibernate-configuration PUBLIC  
+  "-//Hibernate/Hibernate Configuration DTD 3.0//EN"  
+  "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">  
+
+<hibernate-configuration>  
+    <session-factory>  
+        <property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>  
+        <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/mydb</property>  
+        <property name="hibernate.connection.username">root</property>  
+        <property name="hibernate.connection.password">password</property>  
+        <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>  
+        <property name="hibernate.show_sql">true</property>  
+        <property name="hibernate.current_session_context_class">thread</property>  
+
+        <!-- Khai báo entity -->
+        <mapping resource="com/example/model/User.hbm.xml"/>  
+    </session-factory>  
+</hibernate-configuration>
+
+private static final SessionFactory sessionFactory;
+
+static {
+    try {
+        sessionFactory = new Configuration().configure("hibernate.cfg.xml").buildSessionFactory();
+    } catch (Throwable ex) {
+        throw new ExceptionInInitializerError(ex);
+    }
+}
+
+public static Session getSession() {
+    return sessionFactory.openSession();
+}
+----------------------------------------------
+
+Cách 2------
+<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">  
+    <property name="driverClassName" value="com.mysql.jdbc.Driver"/>  
+    <property name="url" value="jdbc:mysql://localhost:3306/mydb"/>  
+    <property name="username" value="root"/>  
+    <property name="password" value="password"/>  
+</bean>  
+
+<bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">  
+    <property name="dataSource" ref="dataSource"/>  
+    <property name="mappingResources">  
+        <list>  
+            <value>com/example/model/User.hbm.xml</value>  
+        </list>  
+    </property>  
+    <property name="hibernateProperties">  
+        <props>  
+            <prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>  
+            <prop key="hibernate.show_sql">true</prop>  
+            <prop key="hibernate.current_session_context_class">thread</prop>  
+        </props>  
+    </property>  
+</bean>  
+
+<bean id="transactionManager" class="org.springframework.orm.hibernate3.HibernateTransactionManager">  
+    <property name="sessionFactory" ref="sessionFactory"/>  
+</bean>  
+
+<tx:annotation-driven transaction-manager="transactionManager"/>
+
+----Trong struts-config.xml, bạn cần thêm Spring Plugin:
+
+<plug-in className="org.springframework.web.struts.ContextLoaderPlugIn">
+    <set-property property="contextConfigLocation" value="/WEB-INF/applicationContext.xml"/>
+</plug-in>
+
+--------
+dùng spring dọc cấu hình hibernate
+-----------------
+<bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+    <property name="configLocation" value="classpath:hibernate.cfg.xml"/>
+</bean>
+
+<bean id="transactionManager" class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+    <property name="sessionFactory" ref="sessionFactory"/>
+</bean>
+
+<tx:annotation-driven transaction-manager="transactionManager"/>
+
+--- Nếu không muốn dùng thread, có thể đổi
+
+<property name="hibernate.current_session_context_class">org.springframework.orm.hibernate3.SpringSessionContext</property>
+
+Service dùng @Transactional để quản lý transaction
+-------------LOGIC ---------
+public List<T002> getCustomers(SearchDTO dto, int offset, int limit) {
+    List<T002> customers = new ArrayList<>();
+    Session session = sessionFactory.getCurrentSession(); // Lấy session từ Hibernate
+    StringBuilder hql = new StringBuilder("FROM T002 WHERE delete_YMD IS NULL");
+
+    if (dto.getCustomerName() != null && !dto.getCustomerName().isEmpty()) {
+        hql.append(" AND name LIKE :customerName");
+    }
+    if (dto.getSex() != null && !dto.getSex().isEmpty()) {
+        hql.append(" AND sex = :sex");
+    }
+    if (dto.getBirthDayFrom() != null && !dto.getBirthDayFrom().isEmpty()) {
+        hql.append(" AND birthday >= :birthDayFrom");
+    }
+    if (dto.getBirthDayTo() != null && !dto.getBirthDayTo().isEmpty()) {
+        hql.append(" AND birthday <= :birthDayTo");
+    }
+
+    hql.append(" ORDER BY id"); // Sắp xếp theo ID
+
+    Query query = session.createQuery(hql.toString());
+
+    if (dto.getCustomerName() != null && !dto.getCustomerName().isEmpty()) {
+        query.setParameter("customerName", "%" + dto.getCustomerName() + "%"); // LIKE
+    }
+    if (dto.getSex() != null && !dto.getSex().isEmpty()) {
+        query.setParameter("sex", dto.getSex());
+    }
+    if (dto.getBirthDayFrom() != null && !dto.getBirthDayFrom().isEmpty()) {
+        query.setParameter("birthDayFrom", dto.getBirthDayFrom());
+    }
+    if (dto.getBirthDayTo() != null && !dto.getBirthDayTo().isEmpty()) {
+        query.setParameter("birthDayTo", dto.getBirthDayTo());
+    }
+
+    query.setFirstResult(offset);
+    query.setMaxResults(limit);
+
+    customers = query.list();
+    return customers;
+}
+
+-----delete---
+public void softDeleteCustomers(List<String> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return;
+    }
+
+    String hql = "UPDATE T002 SET deleteYMD = CURRENT_DATE WHERE id IN (:ids)";
+
+    try (Session session = sessionFactory.openSession()) {
+        Transaction tx = session.beginTransaction();
+        Query query = session.createQuery(hql);
+        query.setParameter("ids", ids);
+        query.executeUpdate();
+        tx.commit();
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
+-----getCustomerById----T003
+public Customer getCustomerById(int customerId) {
+    String hql = "FROM Customer WHERE deleteYMD IS NULL AND id = :customerId";
+    try (Session session = sessionFactory.openSession()) {
+        return session.createQuery(hql, Customer.class)
+                      .setParameter("customerId", customerId)
+                      .uniqueResult();
+    }
+}
+-------updateCustomer----T003
+public boolean updateCustomer(Customer customer, int userUpdate) {
+    String hql = "UPDATE Customer SET name = :name, sex = :sex, birthday = :birthday, " +
+                 "email = :email, address = :address, deleteYMD = NULL, " +
+                 "updateYMD = CURRENT_TIMESTAMP, updatePsnCd = :userUpdate " +
+                 "WHERE id = :customerId";
+    try (Session session = sessionFactory.openSession()) {
+        Transaction tx = session.beginTransaction();
+        Query query = session.createQuery(hql);
+        query.setParameter("name", customer.getCustomerName());
+        query.setParameter("sex", customer.getSex());
+        query.setParameter("birthday", customer.getBirthday());
+        query.setParameter("email", customer.getEmail());
+        query.setParameter("address", customer.getAddress());
+        query.setParameter("userUpdate", userUpdate);
+        query.setParameter("customerId", customer.getCustomerID());
+
+        int result = query.executeUpdate();
+        tx.commit();
+        return result > 0;
+    } catch (Exception e) {
+        e.printStackTrace();
+        return false;
+    }
+}
+--------addCustomer----T003
+public boolean addCustomer(Customer customer, int userInsert) {
+    try (Session session = sessionFactory.openSession()) {
+        Transaction tx = session.beginTransaction();
+        customer.setDeleteYMD(null);
+        customer.setCreateYMD(new Date());
+        customer.setCreatePsnCd(userInsert);
+        customer.setUpdateYMD(new Date());
+        customer.setUpdatePsnCd(userInsert);
+        
+        session.save(customer);
+        tx.commit();
+        return true;
+    } catch (Exception e) {
+        e.printStackTrace();
+        return false;
+    }
+}
+--------khong dùng anotation----
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!-- DataSource -->
+    <bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="com.mysql.cj.jdbc.Driver"/>
+        <property name="url" value="jdbc:mysql://localhost:3306/your_database"/>
+        <property name="username" value="root"/>
+        <property name="password" value="password"/>
+    </bean>
+
+    <!-- Hibernate SessionFactory -->
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="configLocation" value="classpath:hibernate.cfg.xml"/>
+    </bean>
+
+    <!-- Transaction Manager -->
+    <bean id="transactionManager" class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+
+    <!-- Cấu hình DAO -->
+    <bean id="t003Dao" class="fjs.dao.T003Dao">
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+
+    <!-- Cấu hình Service -->
+    <bean id="t003Service" class="fjs.service.T003Service">
+        <property name="t003Dao" ref="t003Dao"/>
+    </bean>
+
+    <!-- Cấu hình Action -->
+    <bean id="t003Action" class="fjs.action.T003Action">
+        <property name="t003Service" ref="t003Service"/>
+    </bean>
+
+</beans>
+
+--------dùng anotaion----------
+--appConetxt
+<context:component-scan base-package="fuji.cs.*" />
+<bean class="org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor"/>
+
+
+
