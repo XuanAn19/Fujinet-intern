@@ -38,3 +38,35 @@ public List<T002> getCustomers(SearchDTO dto, int offset, int limit) {
 
     return customers;
 }
+_-----------
+public void softDeleteCustomers(List<String> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return;
+    }
+
+    try (Session session = sessionFactory.openSession()) {
+        Transaction tx = session.beginTransaction();
+
+        CriteriaBuilder builder = session.getCriteriaBuilder();
+        CriteriaUpdate<T002> criteriaUpdate = builder.createCriteriaUpdate(T002.class);
+        Root<T002> root = criteriaUpdate.from(T002.class);
+
+        // Cập nhật cột delete_YMD thành ngày hiện tại
+        criteriaUpdate.set(root.get("delete_YMD"), new Date());
+
+        // Điều kiện WHERE id IN (:ids)
+        criteriaUpdate.where(root.get("id").in(ids));
+
+        // Thực thi update
+        int updatedRows = session.createQuery(criteriaUpdate).executeUpdate();
+        System.out.println("Số bản ghi bị xóa mềm: " + updatedRows);
+
+        tx.commit();
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
+
+------
+u
