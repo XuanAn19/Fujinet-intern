@@ -105,3 +105,148 @@ public long getTotalCustomer(SearchDTO dto) {
         return 0;
     }
 }
+--------------------
+-----------------
+public T002 getCustomerById(int customerId) {
+    Session session = SessionFactoryUtils.getSession(sessionFactory, true);
+    try {
+        return session.createQuery(
+            "FROM T002 WHERE deleteYMD IS NULL AND customerId = :customerId", T002.class)
+            .setParameter("customerId", customerId)
+            .uniqueResult();
+    } catch (Exception e) {
+        e.printStackTrace();
+        return null;
+    }
+}
+
+
+public boolean updateCustomer(T002 customer, int userUpdate) {
+    Session session = SessionFactoryUtils.getSession(sessionFactory, true);
+    Transaction tx = null;
+    try {
+        tx = session.beginTransaction();
+        Query query = session.createQuery(
+            "UPDATE T002 SET customerName = :name, sex = :sex, birthday = :birthday, " +
+            "email = :email, address = :address, deleteYMD = NULL, updateYMD = CURRENT_TIMESTAMP, " +
+            "updatePsnCd = :userUpdate WHERE customerId = :customerId");
+        query.setParameter("name", customer.getCustomerName());
+        query.setParameter("sex", customer.getSex());
+        query.setParameter("birthday", customer.getBirthDay());
+        query.setParameter("email", customer.getEmail());
+        query.setParameter("address", customer.getAddress());
+        query.setParameter("userUpdate", userUpdate);
+        query.setParameter("customerId", customer.getCustomerId());
+
+        int result = query.executeUpdate();
+        tx.commit();
+        return result > 0;
+    } catch (Exception e) {
+        if (tx != null) tx.rollback();
+        e.printStackTrace();
+        return false;
+    }
+}
+
+public boolean addCustomer(T002 customer, int userInsert) {
+    Session session = SessionFactoryUtils.getSession(sessionFactory, true);
+    Transaction tx = null;
+    try {
+        tx = session.beginTransaction();
+        customer.setDeleteYMD(null);
+        customer.setInsertYMD(new Date());
+        customer.setUpdateYMD(new Date());
+        customer.setInsertPsnCd(userInsert);
+        customer.setUpdatePsnCd(userInsert);
+
+        session.save(customer);
+        tx.commit();
+        return true;
+    } catch (Exception e) {
+        if (tx != null) tx.rollback();
+        e.printStackTrace();
+        return false;
+    }
+}
+
+-----------
+public int getTotalCustomer(SearchDTO dto) {
+    Session session = SessionFactoryUtils.getSession(sessionFactory, true);
+    try {
+        StringBuilder hql = new StringBuilder("SELECT COUNT(c) FROM T002 c WHERE c.deleteYMD IS NULL");
+
+        Map<String, Object> params = new HashMap<>();
+
+        if (dto.getCustomerName() != null && !dto.getCustomerName().isEmpty()) {
+            hql.append(" AND c.customerName LIKE :customerName");
+            params.put("customerName", "%" + dto.getCustomerName() + "%");
+        }
+        if (dto.getSex() != null && !dto.getSex().isEmpty()) {
+            hql.append(" AND c.sex = :sex");
+            params.put("sex", dto.getSex());
+        }
+        if (dto.getBirthDayFrom() != null) {
+            hql.append(" AND c.birthDay >= :birthDayFrom");
+            params.put("birthDayFrom", dto.getBirthDayFrom());
+        }
+        if (dto.getBirthDayTo() != null) {
+            hql.append(" AND c.birthDay <= :birthDayTo");
+            params.put("birthDayTo", dto.getBirthDayTo());
+        }
+
+        Query query = session.createQuery(hql.toString());
+        params.forEach(query::setParameter);
+
+        Long result = (Long) query.uniqueResult();
+        return result != null ? result.intValue() : 0;
+    } catch (Exception e) {
+        e.printStackTrace();
+        return 0;
+    }
+}
+
+-----------
+public int getTotalCustomer(SearchDTO dto) {
+    Transaction transaction = null;
+    int total = 0;
+
+    try (Session session = SessionFactoryUtils.getSession(sessionFactory, true)) {
+        transaction = session.beginTransaction();
+        
+        CriteriaBuilder cb = session.getCriteriaBuilder();
+        CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+        Root<T002> root = cq.from(T002.class);
+
+        // Điều kiện WHERE delete_YMD IS NULL
+        List<Predicate> predicates = new ArrayList<>();
+        predicates.add(cb.isNull(root.get("deleteYMD")));
+
+        if (dto.getCustomerName() != null && !dto.getCustomerName().isEmpty()) {
+            predicates.add(cb.like(root.get("customerName"), "%" + dto.getCustomerName() + "%"));
+        }
+        if (dto.getSex() != null && !dto.getSex().isEmpty()) {
+            predicates.add(cb.equal(root.get("sex"), dto.getSex()));
+        }
+        if (dto.getBirthDayFrom() != null) {
+            predicates.add(cb.greaterThanOrEqualTo(root.get("birthDay"), dto.getBirthDayFrom()));
+        }
+        if (dto.getBirthDayTo() != null) {
+            predicates.add(cb.lessThanOrEqualTo(root.get("birthDay"), dto.getBirthDayTo()));
+        }
+
+        // Đếm tổng số bản ghi phù hợp
+        cq.select(cb.count(root)).where(predicates.toArray(new Predicate[0]));
+
+        Long result = session.createQuery(cq).getSingleResult();
+        total = result != null ? result.intValue() : 0;
+
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) {
+            transaction.rollback();
+        }
+        e.printStackTrace();
+    }
+    
+    return total;
+}
