@@ -1,3 +1,253 @@
+public void softDeleteCustomers(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return;
+    }
+
+    Transaction transaction = null;
+    try (Session session = SessionFactoryUtils.getSession(sessionFactory, true)) {
+        transaction = session.beginTransaction();
+
+        // Lấy CriteriaBuilder từ Session
+        CriteriaBuilder cb = session.getCriteriaBuilder();
+        CriteriaUpdate<T002> update = cb.createCriteriaUpdate(T002.class);
+        Root<T002> root = update.from(T002.class);
+
+        // Cập nhật cột deleteYMD bằng ngày hiện tại
+        update.set(root.get("deleteYMD"), LocalDate.now());
+        update.where(root.get("customerId").in(ids)); // Điều kiện WHERE IN (ids)
+
+        // Thực thi truy vấn cập nhật
+        session.createQuery(update).executeUpdate();
+
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) {
+            transaction.rollback();
+        }
+        e.printStackTrace();
+    }
+}
+------
+public void softDeleteCustomers(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return;
+    }
+
+    Transaction transaction = null;
+    try (Session session = SessionFactoryUtils.getSession(sessionFactory, true)) {
+        transaction = session.beginTransaction();
+
+        // Tạo câu lệnh SQL cập nhật deleteYMD = ngày hiện tại
+        String sql = "UPDATE MSTCUSTOMER SET deleteYMD = GETDATE() WHERE CUSTOMER_ID IN (:ids)";
+
+        Query query = session.createNativeQuery(sql);
+        query.setParameter("ids", ids);
+        query.executeUpdate();
+
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) {
+            transaction.rollback();
+        }
+        e.printStackTrace();
+    }
+}
+-----
+public void softDeleteCustomers(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return;
+    }
+
+    String sql = "UPDATE MSTCUSTOMER SET deleteYMD = GETDATE() WHERE CUSTOMER_ID IN (" +
+                 ids.stream().map(id -> "?").collect(Collectors.joining(",")) + ")";
+
+    try (Connection conn = sessionFactory.getSessionFactoryOptions().getServiceRegistry()
+                .getService(ConnectionProvider.class).getConnection();
+         PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+        for (int i = 0; i < ids.size(); i++) {
+            stmt.setLong(i + 1, ids.get(i));
+        }
+
+        stmt.executeUpdate();
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+}
+----Hobernate 5+
+public void softDeleteCustomers(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return;
+    }
+
+    Transaction transaction = null;
+    try (Session session = sessionFactory.openSession()) {
+        transaction = session.beginTransaction();
+        
+        CriteriaBuilder cb = session.getCriteriaBuilder();
+        CriteriaUpdate<T002> update = cb.createCriteriaUpdate(T002.class);
+        Root<T002> root = update.from(T002.class);
+
+        // Cập nhật cột deleteYMD = ngày hiện tại
+        update.set(root.get("deleteYMD"), LocalDate.now());
+        update.where(root.get("id").in(ids));
+
+        // Thực thi cập nhật
+        session.createQuery(update).executeUpdate();
+
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) {
+            transaction.rollback();
+        }
+        e.printStackTrace();
+    }
+}
+----Hibernate 4+
+public void softDeleteCustomers(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return;
+    }
+
+    Transaction transaction = null;
+    try (Session session = sessionFactory.openSession()) {
+        transaction = session.beginTransaction();
+
+        String hql = "UPDATE T002 SET deleteYMD = :deleteDate WHERE id IN (:ids)";
+        Query query = session.createQuery(hql);
+        query.setParameter("deleteDate", LocalDate.now());
+        query.setParameterList("ids", ids);
+
+        query.executeUpdate();
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) {
+            transaction.rollback();
+        }
+        e.printStackTrace();
+    }
+}
+---hibernate 3.
+public void softDeleteCustomers(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return;
+    }
+
+    Session session = null;
+    Transaction transaction = null;
+    try {
+        session = sessionFactory.openSession();
+        transaction = session.beginTransaction();
+
+        // Tạo đối tượng Criteria để cập nhật deleteYMD
+        Criteria criteria = session.createCriteria(T002.class);
+        criteria.add(Restrictions.in("id", ids));
+
+        List<T002> customers = criteria.list();
+        for (T002 customer : customers) {
+            customer.setDeleteYMD(new Date());  // Đặt ngày xóa mềm
+            session.update(customer);
+        }
+
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) transaction.rollback();
+        e.printStackTrace();
+    } finally {
+        if (session != null) session.close();
+    }
+}
+
+public void softDeleteCustomers(List<Long> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return;
+    }
+
+    Session session = null;
+    Transaction transaction = null;
+    try {
+        session = sessionFactory.openSession();
+        transaction = session.beginTransaction();
+
+        String hql = "UPDATE T002 SET deleteYMD = :deleteDate WHERE id IN (:ids)";
+        Query query = session.createQuery(hql);
+        query.setDate("deleteDate", new Date()); // Hibernate 3 dùng setDate thay vì setParameter
+        query.setParameterList("ids", ids);
+
+        query.executeUpdate();
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) transaction.rollback();
+        e.printStackTrace();
+    } finally {
+        if (session != null) session.close();
+    }
+}
+
+-----update
+public void updateCustomer(T002 customer) {
+    Session session = null;
+    Transaction transaction = null;
+
+    try {
+        session = sessionFactory.openSession(); // Mở session từ Hibernate 3
+        transaction = session.beginTransaction(); // Bắt đầu transaction
+        
+        session.update(customer); // Cập nhật dữ liệu
+        
+        transaction.commit(); // Commit transaction
+    } catch (Exception e) {
+        if (transaction != null) {
+            transaction.rollback(); // Rollback nếu có lỗi
+        }
+        e.printStackTrace();
+    } finally {
+        if (session != null) {
+            session.close(); // Đóng session
+        }
+    }
+}
+
+public void updateCustomerByCriteria(String customerId, String newName) {
+    Session session = null;
+    Transaction transaction = null;
+
+    try {
+        session = sessionFactory.openSession();
+        transaction = session.beginTransaction();
+
+        Criteria criteria = session.createCriteria(T002.class);
+        criteria.add(Restrictions.eq("id", customerId));
+
+        T002 customer = (T002) criteria.uniqueResult();
+        if (customer != null) {
+            customer.setName(newName);
+            session.update(customer);
+        }
+
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) {
+            transaction.rollback();
+        }
+        e.printStackTrace();
+    } finally {
+        if (session != null) {
+            session.close();
+        }
+    }
+}
+---------
+Chức năng	Hibernate 3.2.7.ga
+Thêm (INSERT)	session.save(entity)
+Lấy (SELECT)	session.get(), session.load()
+Cập nhật (UPDATE)	session.update(entity), HQL (createQuery())
+Xóa Mềm (UPDATE delete_YMD)	HQL (createQuery())
+Xóa Cứng (DELETE)	session.delete(entity), HQL (createQuery())
+
+
+----
+
 public List<T002> getCustomers(SearchDTO dto, int offset, int limit) {
     List<T002> customers = new ArrayList<>();
     Session session = sessionFactory.getCurrentSession(); // Lấy session từ Hibernate
