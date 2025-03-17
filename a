@@ -1,44 +1,44 @@
-<div class="form-container">
-    <div class="form-group">
-        <label for="name">Name:</label>
-        <input type="text" id="name">
-    </div>
-    <div class="form-group">
-        <label for="email">Email:</label>
-        <input type="email" id="email">
-    </div>
-    <div class="form-group">
-        <label for="phone">Phone:</label>
-        <input type="text" id="phone">
-    </div>
-</div>
-.form-container {
-    display: flex;
-    flex-direction: column; /* Giữ các nhóm input theo cột */
-    gap: 10px; /* Khoảng cách giữa các hàng */
-    width: 100%; /* Đảm bảo kích thước đầy đủ */
+<html:messages id="msg" property="username">
+    <li><bean:write name="msg"/></li>
+</html:messages>
+
+<html:messages id="msg" property="password">
+    <li><bean:write name="msg"/></li>
+</html:messages>
+
+import org.apache.struts.action.ActionErrors;
+import org.apache.struts.action.ActionError;
+import org.apache.struts.action.ActionMapping;
+import org.apache.struts.action.ActionForm;
+
+import javax.servlet.http.HttpServletRequest;
+
+public class T001Form extends ActionForm {
+    private String username;
+    private String password;
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+
+    @Override
+    public ActionErrors validate(ActionMapping mapping, HttpServletRequest request) {
+        ActionErrors errors = new ActionErrors();
+
+        if (username == null || username.trim().isEmpty()) {
+            errors.add("username", new ActionError("error.username.required"));
+        }
+        if (password == null || password.trim().isEmpty()) {
+            errors.add("password", new ActionError("error.password.required"));
+        }
+        return errors;
+    }
 }
 
-.form-group {
-    display: flex;
-    align-items: center; /* Canh giữa label và input */
-    gap: 10px; /* Khoảng cách giữa label và input */
-    width: 100%;
-}
 
-.form-group label {
-    width: 100px; /* Cố định độ rộng của label để các input thẳng hàng */
-    text-align: right; /* Canh phải để thẳng với input */
-}
-
-.form-group input {
-    flex: 1; /* Input sẽ tự mở rộng chiếm hết phần còn lại */
-    padding: 5px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-
-
-
-
+error.login.required = Vui lòng nhập tài khoản và mật khẩu.
+error.login.invalid = Tài khoản hoặc mật khẩu không đúng.
+error.username.required = Vui lòng nhập tên đăng nhập.
+error.password.required = Vui lòng nhập mật khẩu.
