@@ -1,183 +1,196 @@
-label.required {
-    position: relative;
-    display: inline-block;
-    font-weight: bold;
+/**
+ * Xóa mềm danh sách khách hàng bằng cách cập nhật trường `deleteYmd`
+ * @param ids - Danh sách ID của khách hàng cần xóa
+ */
+public void softDeleteCustomers(List<Integer> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return; // Không làm gì nếu danh sách ID rỗng
+    }
+
+    Transaction transaction = null;
+    try {
+        // Mở phiên làm việc với SessionFactory
+        Session session = sessionFactory.openSession();
+
+        // Bắt đầu giao dịch
+        transaction = session.beginTransaction();
+
+        // Tạo truy vấn cập nhật trường `deleteYmd`
+        Query query = session.createQuery("UPDATE T002 SET deleteYmd = :deleteYmd WHERE customerID IN (:ids)");
+
+        // Thiết lập tham số
+        query.setParameter("deleteYmd", new Date()); // Gán ngày xóa là ngày hiện tại
+        query.setParameterList("ids", ids); // Gán danh sách ID cần xóa
+
+        // Thực thi truy vấn
+        query.executeUpdate();
+
+        // Xác nhận giao dịch
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null)
+            transaction.rollback(); // Hoàn tác nếu có lỗi
+        e.printStackTrace(); // In lỗi ra console
+    }
 }
 
-label.required::before {
-    content: "";
-    position: absolute;
-    top: -5px;  /* Điều chỉnh vị trí */
-    left: -5px; /* Điều chỉnh vị trí */
-    width: 10px;
-    height: 10px;
-    background-color: green; /* Màu tam giác */
-    clip-path: polygon(0 0, 100% 0, 0 100%); /* Tạo tam giác */
-}
+/**
+ * Kiểm tra thông tin đăng nhập của người dùng
+ * @param dto - Đối tượng `T001Dto` chứa thông tin đăng nhập
+ * @return `true` nếu tài khoản tồn tại, `false` nếu tài khoản không tồn tại
+ */
+public boolean checkUser(T001Dto dto) {
+    int CNT = t001Dao.checkLogin(dto);
 
-
-
-
-
-
-/* Centering the form
-.form-container {
-    display: flex; 
-    justify-content: center;
-    align-items: center;
-    height: 100vh; /* Full viewport height */
-    background-color: #f4f4f4;
-} 
-
-.form {
-    display: grid;
-    grid-template-columns: 100px 1fr; /* Label width and input width */
-    gap: 10px; /* Spacing between label and input */
-    width: 500px; /* Fixed form width */
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-/* Form Group */
-.form-group {
-    display: flex;
-    align-items: center; /* Align label and input vertically */
-}
-
-/* Label styling */
-.form-group label {
-    text-align: right;
-    margin-right: 10px; /* Space between label and input */
-    font-weight: bold;
-}
-
-/* Input, select and textarea styling */
-.form-group input,
-.form-group select,
-.form-group textarea {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-/* Textarea with fixed height (3 lines) */
-.form-group textarea {
-    height: 80px; /* Roughly 3 lines of text */
-    resize: none; /* Disable resizing */
-}
-
-/* Button styling */
-button {
-    grid-column: span 2; /* Button spans across both columns */
-    padding: 10px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-button:hover {
-    background-color: #45a049;
+    if (CNT == 1) {
+        return true; // Đăng nhập thành công
+    }
+    return false; // Đăng nhập thất bại
 }
 
 
-<div class="form-container">
-    <form class="form">
-        <div class="form-group">
-            <label for="name">Name:</label>
-            <input type="text" id="name">
-        </div>
-        <div class="form-group">
-            <label for="email">Email:</label>
-            <input type="email" id="email">
-        </div>
-        <div class="form-group">
-            <label for="country">Country:</label>
-            <select id="country">
-                <option value="us">USA</option>
-                <option value="uk">UK</option>
-                <option value="vn">Vietnam</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="message">Message:</label>
-            <textarea id="message"></textarea>
-        </div>
-        <button type="submit">Submit</button>
-    </form>
-</div>
 
+/**
+ * Lấy danh sách khách hàng theo tiêu chí tìm kiếm
+ * @param customerName - Tên khách hàng cần tìm
+ * @param sex - Giới tính của khách hàng
+ * @param birthDayFrom - Ngày sinh bắt đầu
+ * @param birthDayTo - Ngày sinh kết thúc
+ * @param offset - Vị trí bắt đầu trong danh sách kết quả
+ * @param limit - Số lượng khách hàng cần lấy
+ * @return Danh sách khách hàng phù hợp với điều kiện tìm kiếm
+ */
+public List<CustomerDto> getCustomer(String customerName, String sex, String birthDayFrom, String birthDayTo,
+                                     int offset, int limit) {
+    T002Dto dto = new T002Dto(customerName, sex, birthDayFrom, birthDayTo);
+    List<CustomerDto> customer = t002Dao.getCustomers(dto, offset, limit);
 
-
-/* Đưa form ra giữa màn hình */
-.form-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh; /* Chiếm toàn bộ chiều cao màn hình */
-    background-color: #f4f4f4;
+    return customer;
 }
 
-/* Căn giữa các div bên trong form */
-.form {
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Đẩy tất cả các div ra chính giữa */
-    gap: 15px; /* Khoảng cách giữa các div */
-    width: 400px; /* Chiều rộng cố định của form */
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+/**
+ * Lấy tổng số bản ghi khách hàng theo tiêu chí tìm kiếm
+ * @param customerName - Tên khách hàng cần tìm
+ * @param sex - Giới tính của khách hàng
+ * @param birthDayFrom - Ngày sinh bắt đầu
+ * @param birthDayTo - Ngày sinh kết thúc
+ * @return Tổng số bản ghi khách hàng phù hợp với điều kiện tìm kiếm
+ */
+public int getTotalRecords(String customerName, String sex, String birthDayFrom, String birthDayTo) {
+    T002Dto dto = new T002Dto(customerName, sex, birthDayFrom, birthDayTo);
+    int totalRecord = t002Dao.getTotalCustomer(dto);
+
+    return totalRecord;
 }
 
-/* Form-group căn giữa label và input */
-.form-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Đưa label và input ra giữa */
-    width: 100%;
+/**
+ * Xóa mềm danh sách khách hàng (chỉ cập nhật trường `deleteYmd`)
+ * @param ids - Danh sách ID của khách hàng cần xóa
+ */
+public void deleteCustomers(List<Integer> ids) {
+    t002Dao.softDeleteCustomers(ids);
 }
 
-/* Label căn giữa */
-.form-group label {
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 5px;
+
+/**
+ * Lấy danh sách khách hàng theo tiêu chí tìm kiếm
+ * @param customerName - Tên khách hàng cần tìm
+ * @param sex - Giới tính của khách hàng
+ * @param birthDayFrom - Ngày sinh bắt đầu
+ * @param birthDayTo - Ngày sinh kết thúc
+ * @param offset - Vị trí bắt đầu trong danh sách kết quả
+ * @param limit - Số lượng khách hàng cần lấy
+ * @return Danh sách khách hàng phù hợp với điều kiện tìm kiếm
+ */
+public List<CustomerDto> getCustomer(String customerName, String sex, String birthDayFrom, String birthDayTo,
+                                     int offset, int limit) {
+    T002Dto dto = new T002Dto(customerName, sex, birthDayFrom, birthDayTo);
+    List<CustomerDto> customer = t002Dao.getCustomers(dto, offset, limit);
+
+    return customer;
 }
 
-/* Input, select và textarea căn giữa */
-.form-group input,
-.form-group select,
-.form-group textarea {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+/**
+ * Lấy tổng số bản ghi khách hàng theo tiêu chí tìm kiếm
+ * @param customerName - Tên khách hàng cần tìm
+ * @param sex - Giới tính của khách hàng
+ * @param birthDayFrom - Ngày sinh bắt đầu
+ * @param birthDayTo - Ngày sinh kết thúc
+ * @return Tổng số bản ghi khách hàng phù hợp với điều kiện tìm kiếm
+ */
+public int getTotalRecords(String customerName, String sex, String birthDayFrom, String birthDayTo) {
+    T002Dto dto = new T002Dto(customerName, sex, birthDayFrom, birthDayTo);
+    int totalRecord = t002Dao.getTotalCustomer(dto);
+
+    return totalRecord;
 }
 
-/* Textarea với chiều cao cố định */
-.form-group textarea {
-    height: 80px; /* Khoảng 3 dòng */
-    resize: none;
+/**
+ * Xóa mềm danh sách khách hàng (chỉ cập nhật trường `deleteYmd`)
+ * @param ids - Danh sách ID của khách hàng cần xóa
+ */
+public void deleteCustomers(List<Integer> ids) {
+    t002Dao.softDeleteCustomers(ids);
 }
 
-/* Căn giữa nút submit */
-button {
-    width: 100%;
-    padding: 10px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    text-align: center;
+
+
+/**
+ * Lấy thông tin người dùng dựa trên DTO truyền vào
+ * @param dto - Đối tượng `T001Dto` chứa thông tin tìm kiếm
+ * @return Đối tượng `UserDto` nếu tìm thấy, `null` nếu không tìm thấy hoặc có lỗi
+ */
+public UserDto getUserByDto(T001Dto dto) {
+    try {
+        UserDto user = t001Dao.getUserByDto(dto);
+        return user;
+    } catch (Exception e) {
+        e.printStackTrace(); // In lỗi nếu xảy ra ngoại lệ
+    }
+    return null;
 }
 
-button:hover {
-    background-color: #45a049;
+
+
+private T003Dao t003Dao;
+
+/**
+ * Thiết lập đối tượng DAO để thao tác với cơ sở dữ liệu
+ * @param t003Dao - Đối tượng DAO cho khách hàng
+ */
+public void setT003Dao(T003Dao t003Dao) {
+    this.t003Dao = t003Dao;
+}
+
+/**
+ * Lấy thông tin khách hàng theo ID
+ * @param customerId - ID của khách hàng cần lấy thông tin
+ * @return Đối tượng `CustomerDto` chứa thông tin khách hàng
+ * @throws SQLException Nếu có lỗi khi truy vấn cơ sở dữ liệu
+ */
+public CustomerDto getCustomerById(int customerId) throws SQLException {
+    return t003Dao.getCustomerById(customerId);
+}
+
+/**
+ * Cập nhật thông tin khách hàng
+ * @param customer - Đối tượng `CustomerDto` chứa thông tin cần cập nhật
+ * @param userUpdate - ID của người thực hiện cập nhật
+ * @return `true` nếu cập nhật thành công, `false` nếu thất bại
+ * @throws SQLException Nếu có lỗi khi cập nhật dữ liệu
+ */
+public boolean updateCustomer(CustomerDto customer, int userUpdate) throws SQLException {
+    boolean isTrue = t003Dao.updateCustomer(customer, userUpdate);
+    return isTrue;
+}
+
+/**
+ * Thêm mới khách hàng vào hệ thống
+ * @param customer - Đối tượng `CustomerDto` chứa thông tin khách hàng cần thêm
+ * @param userAdd - ID của người thực hiện thêm
+ * @return `true` nếu thêm thành công, `false` nếu thất bại
+ */
+public boolean addCustomer(CustomerDto customer, int userAdd) {
+    boolean isTrue = t003Dao.addCustomer(customer, userAdd);
+    return isTrue;
 }
