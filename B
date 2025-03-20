@@ -1,3 +1,46 @@
+public void softDeleteCustomers(List<Integer> ids) {
+    if (ids == null || ids.isEmpty()) {
+        return;
+    }
+
+    Transaction transaction = null;
+    Session session = null;
+    try {
+        session = sessionFactory.openSession();
+        transaction = session.beginTransaction();
+
+        // Tạo tiêu chí truy vấn khách hàng có ID trong danh sách ids
+        DetachedCriteria criteria = DetachedCriteria.forClass(T002.class);
+        criteria.add(Restrictions.in("customerID", ids));
+
+        // Lấy danh sách khách hàng cần cập nhật
+        List<T002> customers = criteria.getExecutableCriteria(session).list();
+
+        // Duyệt danh sách và cập nhật deleteYmd
+        Date currentDate = new Date();
+        for (T002 customer : customers) {
+            customer.setDeleteYmd(currentDate);
+            session.update(customer);
+        }
+
+        // Commit transaction
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) {
+            transaction.rollback();
+        }
+        e.printStackTrace();
+    } finally {
+        if (session != null) {
+            session.close();
+        }
+    }
+}
+
+
+
+
+
 /**
  * Xóa mềm danh sách khách hàng bằng cách cập nhật trường `deleteYmd`
  * @param ids - Danh sách ID của khách hàng cần xóa
