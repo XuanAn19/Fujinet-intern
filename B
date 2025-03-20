@@ -1,3 +1,102 @@
+public boolean updateCustomer(CustomerDto customerDto, int userUpdate) {
+    Transaction transaction = null;
+    Session session = null;
+    boolean isUpdated = false;
+
+    try {
+        session = sessionFactory.openSession();
+        transaction = session.beginTransaction();
+
+        // Sử dụng HQL để update trực tiếp, không cần load đối tượng
+        Query query = session.createQuery(
+            "UPDATE T002 SET name = :name, sex = :sex, birthday = :birthday, " +
+            "email = :email, address = :address, lastUpdatedBy = :lastUpdatedBy, " +
+            "lastUpdatedDate = :lastUpdatedDate WHERE customerID = :customerID"
+        );
+
+        query.setParameter("name", customerDto.getName());
+        query.setParameter("sex", customerDto.getSex());
+        query.setParameter("birthday", customerDto.getBirthday());
+        query.setParameter("email", customerDto.getEmail());
+        query.setParameter("address", customerDto.getAddress());
+        query.setParameter("lastUpdatedBy", userUpdate);
+        query.setParameter("lastUpdatedDate", new Date());
+        query.setParameter("customerID", customerDto.getCustomerID());
+
+        int rowCount = query.executeUpdate();
+
+        // Kiểm tra số dòng bị ảnh hưởng
+        isUpdated = rowCount > 0;
+
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) {
+            transaction.rollback();
+        }
+        e.printStackTrace();
+    } finally {
+        if (session != null) {
+            session.close();
+        }
+    }
+
+    return isUpdated;
+}
+
+
+
+public boolean updateCustomer(CustomerDto customerDto, int userUpdate) {
+    Transaction transaction = null;
+    Session session = null;
+    boolean isUpdated = false;
+
+    try {
+        session = sessionFactory.openSession();
+        transaction = session.beginTransaction();
+
+        // Tạo DetachedCriteria để lấy khách hàng cần cập nhật
+        DetachedCriteria criteria = DetachedCriteria.forClass(T002.class);
+        criteria.add(Restrictions.eq("customerID", customerDto.getCustomerID()));
+
+        // Thực thi truy vấn để lấy đối tượng cần cập nhật
+        List<T002> customers = criteria.getExecutableCriteria(session).list();
+
+        if (!customers.isEmpty()) {
+            T002 customer = customers.get(0);
+
+            // Cập nhật thông tin khách hàng
+            customer.setName(customerDto.getName());
+            customer.setSex(customerDto.getSex());
+            customer.setBirthday(customerDto.getBirthday());
+            customer.setEmail(customerDto.getEmail());
+            customer.setAddress(customerDto.getAddress());
+            customer.setLastUpdatedBy(userUpdate);
+            customer.setLastUpdatedDate(new Date());
+
+            // Lưu cập nhật vào database
+            session.update(customer);
+            isUpdated = true;
+        }
+
+        // Commit transaction
+        transaction.commit();
+    } catch (Exception e) {
+        if (transaction != null) {
+            transaction.rollback();
+        }
+        e.printStackTrace();
+    } finally {
+        if (session != null) {
+            session.close();
+        }
+    }
+
+    return isUpdated;
+}
+
+
+
+
 public void softDeleteCustomers(List<Integer> ids) {
     if (ids == null || ids.isEmpty()) {
         return;
