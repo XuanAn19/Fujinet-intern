@@ -1,0 +1,119 @@
+<h2>Quản lý khách hàng</h2>
+
+<form action="customerAction.do" method="post">
+    <input type="hidden" name="action" value="export"/>
+    <input type="submit" value="Export Customer"/>
+</form>
+
+<form action="customerAction.do" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="action" value="import"/>
+    <input type="file" name="file"/>
+    <input type="submit" value="Import Customer"/>
+</form>
+
+<!-- Hiển thị thông báo -->
+<c:if test="${not empty message}">
+    <p style="color: green;">${message}</p>
+</c:if>
+<c:if test="${not empty error}">
+    <p style="color: red;">${error}</p>
+</c:if>
+
+---------
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.struts.action.*;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+import org.hibernate.criterion.Restrictions;
+import java.io.*;
+import java.util.*;
+
+public class T002Action extends Action {
+    private final String FILE_PATH = "D:/customers.txt"; // File lưu danh sách khách hàng
+
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) throws Exception {
+        String action = request.getParameter("action");
+
+        if ("export".equals(action)) {
+            return exportCustomer(mapping, request);
+        } else if ("import".equals(action)) {
+            return importCustomer(mapping, request);
+        }
+
+        return mapping.findForward("success");
+    }
+
+    // Xuất danh sách khách hàng từ database ra file
+    private ActionForward exportCustomer(ActionMapping mapping, HttpServletRequest request) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(FILE_PATH))) {
+            Session session = HibernateUtil.getSessionFactory().openSession();
+            List<T002> customers = session.createCriteria(T002.class).list();
+
+            for (T002 customer : customers) {
+                writer.write(customer.getCustomerID() + "," + customer.getName() + "," +
+                        customer.getSex() + "," + customer.getBirthday() + "," +
+                        customer.getEmail() + "," + customer.getAddress() + "\n");
+            }
+
+            session.close();
+            request.setAttribute("message", "Xuất danh sách khách hàng thành công!");
+        } catch (IOException e) {
+            request.setAttribute("error", "Xuất danh sách thất bại: " + e.getMessage());
+        }
+        return mapping.findForward("success");
+    }
+
+    // Import danh sách khách hàng từ file vào database
+    private ActionForward importCustomer(ActionMapping mapping, HttpServletRequest request) {
+        if (!ServletFileUpload.isMultipartContent(request)) {
+            request.setAttribute("error", "Vui lòng chọn file để import!");
+            return mapping.findForward("success");
+        }
+
+        try {
+            List<FileItem> formItems = new ServletFileUpload(new DiskFileItemFactory()).parseRequest(request);
+            for (FileItem item : formItems) {
+                if (!item.isFormField()) {
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(item.getInputStream()))) {
+                        Session session = HibernateUtil.getSessionFactory().openSession();
+                        Transaction transaction = session.beginTransaction();
+
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            String[] data = line.split(",");
+                            T002 customer = new T002();
+                            customer.setCustomerID(Integer.parseInt(data[0]));
+                            customer.setName(data[1]);
+                            customer.setSex(data[2]);
+                            customer.setBirthday(data[3]);
+                            customer.setEmail(data[4]);
+                            customer.setAddress(data[5]);
+
+                            session.save(customer);
+                        }
+
+                        transaction.commit();
+                        session.close();
+                        request.setAttribute("message", "Import danh sách khách hàng thành công!");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            request.setAttribute("error", "Import thất bại: " + e.getMessage());
+        }
+        return mapping.findForward("success");
+    }
+}
+<action path="/customerAction"
+        type="fjs.cs.action.T002Action"
+        scope="request"
+        validate="false"
+        input="/T002.jsp">
+    <forward name="success" path="/T002.jsp"/>
+</action>
