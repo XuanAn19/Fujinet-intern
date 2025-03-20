@@ -1,0 +1,355 @@
+<form action="importCustomer.do" method="post" enctype="multipart/form-data">
+    <input type="file" name="file"/>
+    <input type="submit" value="Import"/>
+</form>
+
+<form action="exportCustomer.do" method="post">
+    <input type="submit" value="Export"/>
+</form>
+
+
+<action path="/exportCustomer"
+        type="fjs.cs.action.T002Action"
+        name="T002Form"
+        scope="request"
+        validate="false"
+        input="/T002.jsp">
+    <forward name="success" path="/T002.jsp"/>
+</action>
+
+<action path="/importCustomer"
+        type="fjs.cs.action.T002Action"
+        name="T002Form"
+        scope="request"
+        validate="false"
+        input="/T002.jsp">
+    <forward name="success" path="/T002.jsp"/>
+    <forward name="error" path="/T002.jsp"/>
+</action>
+
+T002Form.java (Thêm biến file để upload)
+
+public class T002Form extends ActionForm {
+    private FormFile file;
+
+    public FormFile getFile() {
+        return file;
+    }
+
+    public void setFile(FormFile file) {
+        this.file = file;
+    }
+}
+
+public class T002Service {
+    private T002Dao t002Dao;
+
+    public List<T002> getAllCustomers() {
+        return t002Dao.getAllCustomers();
+    }
+
+    public void saveCustomers(List<T002> customers) {
+        for (T002 customer : customers) {
+            t002Dao.save(customer);
+        }
+    }
+}
+
+
+---
+public class T002Action extends Action {
+    private T002Service t002Service;
+
+    public ActionForward importCustomer(ActionMapping mapping, ActionForm form,
+                                        HttpServletRequest request, HttpServletResponse response) throws Exception {
+        FormFile file = ((T002Form) form).getFile();
+        if (file == null || file.getFileSize() == 0) {
+            request.setAttribute("error", "Vui lòng chọn file để upload!");
+            return mapping.findForward("error");
+        }
+
+        InputStream inputStream = file.getInputStream();
+        Workbook workbook = new XSSFWorkbook(inputStream);
+        Sheet sheet = workbook.getSheetAt(0);
+
+        List<T002> customers = new ArrayList<>();
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            if (row == null) continue;
+
+            T002 customer = new T002();
+            customer.setId((int) row.getCell(0).getNumericCellValue());
+            customer.setName(row.getCell(1).getStringCellValue());
+            customer.setSex(row.getCell(2).getStringCellValue());
+            customer.setBirthday(Date.valueOf(row.getCell(3).getStringCellValue()));
+            customer.setEmail(row.getCell(4).getStringCellValue());
+            customer.setAddress(row.getCell(5).getStringCellValue());
+
+            customers.add(customer);
+        }
+
+        workbook.close();
+        t002Service.saveCustomers(customers);
+        return mapping.findForward("success");
+    }
+}
+----
+public class T002Action extends Action {
+    private T002Service t002Service;
+
+    public ActionForward exportCustomer(ActionMapping mapping, ActionForm form,
+                                        HttpServletRequest request, HttpServletResponse response) throws Exception {
+        List<T002> customerList = t002Service.getAllCustomers();
+
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Customers");
+
+        Row header = sheet.createRow(0);
+        header.createCell(0).setCellValue("ID");
+        header.createCell(1).setCellValue("Name");
+        header.createCell(2).setCellValue("Sex");
+        header.createCell(3).setCellValue("Birthday");
+        header.createCell(4).setCellValue("Email");
+        header.createCell(5).setCellValue("Address");
+
+        int rowIdx = 1;
+        for (T002 customer : customerList) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(customer.getId());
+            row.createCell(1).setCellValue(customer.getName());
+            row.createCell(2).setCellValue(customer.getSex());
+            row.createCell(3).setCellValue(customer.getBirthday().toString());
+            row.createCell(4).setCellValue(customer.getEmail());
+            row.createCell(5).setCellValue(customer.getAddress());
+        }
+
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=customers.xlsx");
+        workbook.write(response.getOutputStream());
+        workbook.close();
+        return null;
+    }
+}
+---------------------
+Đọc ghi file 
+---------------------
+public class T002Service {
+    private T002Dao t002Dao;
+
+    public boolean exportCustomerList(String filePath) {
+        List<T002> customers = t002Dao.getAllCustomers();
+        FileWriter fileWriter = null;
+        BufferedWriter bufferedWriter = null;
+        
+        try {
+            fileWriter = new FileWriter(filePath);
+            bufferedWriter = new BufferedWriter(fileWriter);
+
+            for (T002 customer : customers) {
+                String line = customer.getCustomerID() + "," +
+                              customer.getName() + "," +
+                              customer.getSex() + "," +
+                              customer.getBirthday() + "," +
+                              customer.getEmail() + "," +
+                              customer.getAddress();
+                bufferedWriter.write(line);
+                bufferedWriter.newLine();
+            }
+            bufferedWriter.flush();
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (bufferedWriter != null) bufferedWriter.close();
+                if (fileWriter != null) fileWriter.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+--------- Import danh sách khách hàng (Đọc file)
+public boolean importCustomerList(String filePath, int userUpdate) {
+    FileReader fileReader = null;
+    BufferedReader bufferedReader = null;
+    boolean isImported = false;
+    Session session = null;
+    Transaction transaction = null;
+
+    try {
+        fileReader = new FileReader(filePath);
+        bufferedReader = new BufferedReader(fileReader);
+        session = sessionFactory.openSession();
+        transaction = session.beginTransaction();
+        
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            String[] data = line.split(",");
+            if (data.length < 6) continue; // Kiểm tra dữ liệu đủ 6 cột
+            
+            T002 customer = new T002();
+            customer.setCustomerID(Integer.parseInt(data[0]));
+            customer.setName(data[1]);
+            customer.setSex(data[2]);
+            customer.setBirthday(Date.valueOf(data[3]));
+            customer.setEmail(data[4]);
+            customer.setAddress(data[5]);
+            customer.setLastUpdatedBy(userUpdate);
+            customer.setLastUpdatedDate(new Date());
+
+            session.saveOrUpdate(customer);
+        }
+
+        transaction.commit();
+        isImported = true;
+    } catch (Exception e) {
+        if (transaction != null) transaction.rollback();
+        e.printStackTrace();
+    } finally {
+        try {
+            if (bufferedReader != null) bufferedReader.close();
+            if (fileReader != null) fileReader.close();
+            if (session != null) session.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    return isImported;
+}
+--------
+public class T002Action extends Action {
+    private T002Service t002Service;
+
+    public ActionForward exportCustomer(ActionMapping mapping, ActionForm form,
+                                        HttpServletRequest request, HttpServletResponse response) throws Exception {
+        String filePath = "D:/customers.txt"; // Đường dẫn file
+        boolean success = t002Service.exportCustomerList(filePath);
+        
+        if (success) {
+            request.setAttribute("message", "Xuất danh sách khách hàng thành công!");
+        } else {
+            request.setAttribute("error", "Xuất danh sách thất bại!");
+        }
+        
+        return mapping.findForward("success");
+    }
+
+    public ActionForward importCustomer(ActionMapping mapping, ActionForm form,
+                                        HttpServletRequest request, HttpServletResponse response) throws Exception {
+        String filePath = "D:/customers.txt"; // Đường dẫn file
+        int userUpdate = 1; // ID người thực hiện import
+        boolean success = t002Service.importCustomerList(filePath, userUpdate);
+        
+        if (success) {
+            request.setAttribute("message", "Import danh sách khách hàng thành công!");
+        } else {
+            request.setAttribute("error", "Import danh sách thất bại!");
+        }
+
+        return mapping.findForward("success");
+    }
+}
+<action path="/exportCustomer"
+        type="fjs.cs.action.T002Action"
+        scope="request"
+        validate="false"
+        input="/T002.jsp">
+    <forward name="success" path="/T002.jsp"/>
+</action>
+
+<action path="/importCustomer"
+        type="fjs.cs.action.T002Action"
+        scope="request"
+        validate="false"
+        input="/T002.jsp">
+    <forward name="success" path="/T002.jsp"/>
+</action>
+<form action="importCustomer.do" method="post">
+    <input type="submit" value="Import Customer"/>
+</form>
+
+<form action="exportCustomer.do" method="post">
+    <input type="submit" value="Export Customer"/>
+</form>
+
+<c:if test="${not empty message}">
+    <p style="color: green;">${message}</p>
+</c:if>
+<c:if test="${not empty error}">
+    <p style="color: red;">${error}</p>
+</c:if>
+----------
+Viết chung trong 1 action---
+public class T002Action extends Action {
+    private T002Service t002Service;
+
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) throws Exception {
+        String action = request.getParameter("action");
+
+        if ("export".equals(action)) {
+            return exportCustomer(mapping, request);
+        } else if ("import".equals(action)) {
+            return importCustomer(mapping, request);
+        }
+
+        return mapping.findForward("success");
+    }
+
+    private ActionForward exportCustomer(ActionMapping mapping, HttpServletRequest request) {
+        String filePath = "D:/customers.txt"; // Đường dẫn file
+        boolean success = t002Service.exportCustomerList(filePath);
+
+        if (success) {
+            request.setAttribute("message", "Xuất danh sách khách hàng thành công!");
+        } else {
+            request.setAttribute("error", "Xuất danh sách thất bại!");
+        }
+
+        return mapping.findForward("success");
+    }
+
+    private ActionForward importCustomer(ActionMapping mapping, HttpServletRequest request) {
+        String filePath = "D:/customers.txt"; // Đường dẫn file
+        int userUpdate = 1; // ID người thực hiện import
+        boolean success = t002Service.importCustomerList(filePath, userUpdate);
+
+        if (success) {
+            request.setAttribute("message", "Import danh sách khách hàng thành công!");
+        } else {
+            request.setAttribute("error", "Import danh sách thất bại!");
+        }
+
+        return mapping.findForward("success");
+    }
+}
+
+<action path="/customerAction"
+        type="fjs.cs.action.T002Action"
+        scope="request"
+        validate="false"
+        input="/T002.jsp">
+    <forward name="success" path="/T002.jsp"/>
+</action>
+
+<form action="customerAction.do" method="post">
+    <input type="hidden" name="action" value="import"/>
+    <input type="submit" value="Import Customer"/>
+</form>
+
+<form action="customerAction.do" method="post">
+    <input type="hidden" name="action" value="export"/>
+    <input type="submit" value="Export Customer"/>
+</form>
+
+<c:if test="${not empty message}">
+    <p style="color: green;">${message}</p>
+</c:if>
+<c:if test="${not empty error}">
+    <p style="color: red;">${error}</p>
+</c:if>
+
