@@ -1,0 +1,90 @@
+<%@ taglib uri="/WEB-INF/struts-html.tld" prefix="html" %>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+
+<html>
+<head>
+    <title>Import Customer Data</title>
+    <style>
+        .container {
+            width: 50%;
+            margin: 50px auto;
+            text-align: center;
+            background-color: #ccf2ff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 10px #999;
+        }
+        .file-input {
+            display: none; /* Ẩn input file */
+        }
+        .button-container {
+            margin-top: 10px;
+        }
+        .custom-file-label {
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .custom-file-label:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script>
+        function updateFileName(input) {
+            let fileName = input.files[0] ? input.files[0].name : "";
+            document.getElementById("txtFileName").value = fileName;
+        }
+
+        function validateForm() {
+            let fileName = document.getElementById("txtFileName").value;
+            if (fileName.trim() === "") {
+                alert("Please select a file before importing.");
+                return false;
+            }
+            return true;
+        }
+
+        function cancelAction() {
+            window.location.href = "T002.do"; // Quay về màn search
+        }
+    </script>
+</head>
+<body>
+
+<div class="container">
+    <h2>1</h2>
+
+    <!-- Form import file -->
+    <html:form action="/TXXX.do" method="post" enctype="multipart/form-data" onsubmit="return validateForm();">
+        
+        <!-- Ô nhập tên file (Chỉ hiển thị, không nhập tay) -->
+        <html:text property="txtFileName" style="width: 250px;" readonly="true" styleId="txtFileName"/>
+        
+        <!-- Nút chọn file -->
+        <label class="custom-file-label" for="uploadFile">Browser</label>
+        <input type="file" id="uploadFile" name="uploadFile" class="file-input" onchange="updateFileName(this);"/>
+        
+        <br><br>
+        
+        <!-- Nút Import -->
+        <div class="button-container">
+            <html:submit property="action" value="Import"/>
+            <input type="button" value="Cancel" onclick="cancelAction();"/>
+        </div>
+        
+    </html:form>
+    
+    <br>
+    
+    <div>
+        <small>Copyright (c) 2000-2008 FUJINET. All Rights Reserved.</small>
+    </div>
+
+</div>
+
+</body>
+</html>
