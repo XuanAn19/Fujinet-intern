@@ -20,20 +20,24 @@
         .button-container {
             margin-top: 10px;
         }
-        .custom-file-label {
-            display: inline-block;
+        .btn {
             padding: 6px 12px;
             cursor: pointer;
             background-color: #007bff;
             color: white;
+            border: none;
             border-radius: 5px;
             font-size: 14px;
         }
-        .custom-file-label:hover {
+        .btn:hover {
             background-color: #0056b3;
         }
     </style>
     <script>
+        function triggerFileSelect() {
+            document.getElementById("uploadFile").click();
+        }
+
         function updateFileName(input) {
             let fileName = input.files[0] ? input.files[0].name : "";
             document.getElementById("txtFileName").value = fileName;
@@ -64,16 +68,16 @@
         <!-- Ô nhập tên file (Chỉ hiển thị, không nhập tay) -->
         <html:text property="txtFileName" style="width: 250px;" readonly="true" styleId="txtFileName"/>
         
-        <!-- Nút chọn file -->
-        <label class="custom-file-label" for="uploadFile">Browser</label>
+        <!-- Nút Browse -->
+        <input type="button" class="btn" value="Browse" onclick="triggerFileSelect();"/>
         <input type="file" id="uploadFile" name="uploadFile" class="file-input" onchange="updateFileName(this);"/>
         
         <br><br>
         
         <!-- Nút Import -->
         <div class="button-container">
-            <html:submit property="action" value="Import"/>
-            <input type="button" value="Cancel" onclick="cancelAction();"/>
+            <html:submit property="action" value="Import" styleClass="btn"/>
+            <input type="button" class="btn" value="Cancel" onclick="cancelAction();"/>
         </div>
         
     </html:form>
