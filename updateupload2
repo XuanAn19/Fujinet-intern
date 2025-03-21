@@ -1,0 +1,232 @@
+package dto;
+
+public class T004Bean {
+    private String customerId;
+    private String customerName;
+    private String sex;
+    private String birthday;
+    private String email;
+    private String address;
+
+    public T004Bean() {}
+
+    public T004Bean(String customerId, String customerName, String sex, String birthday, String email, String address) {
+        this.customerId = customerId;
+        this.customerName = customerName;
+        this.sex = sex;
+        this.birthday = birthday;
+        this.email = email;
+        this.address = address;
+    }
+
+    public String getCustomerId() { return customerId; }
+    public void setCustomerId(String customerId) { this.customerId = customerId; }
+
+    public String getCustomerName() { return customerName; }
+    public void setCustomerName(String customerName) { this.customerName = customerName; }
+
+    public String getSex() { return sex; }
+    public void setSex(String sex) { this.sex = sex; }
+
+    public String getBirthday() { return birthday; }
+    public void setBirthday(String birthday) { this.birthday = birthday; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+}
+-----------------
+package action;
+
+import dto.T004Bean;
+import form.T004Form;
+import service.T004Service;
+import org.apache.struts.actions.DispatchAction;
+import org.apache.struts.action.*;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.InputStream;
+import java.util.List;
+
+public class T004Action extends DispatchAction {
+    private T004Service t004Service;
+
+    public void setT004Service(T004Service t004Service) {
+        this.t004Service = t004Service;
+    }
+
+    public ActionForward importFile(ActionMapping mapping, ActionForm form,
+                                    HttpServletRequest request, HttpServletResponse response) {
+        T004Form importForm = (T004Form) form;
+        String fileName = importForm.getFileName();
+
+        if (fileName == null || !fileName.endsWith(".csv")) {
+            request.setAttribute("error", "Invalid CSV file!");
+            return mapping.findForward("showForm");
+        }
+
+        try {
+            InputStream inputStream = importForm.getFileInputStream();
+            List<T004Bean> customers = t004Service.parseCSV(inputStream);
+
+            List<String> errors = t004Service.validateData(customers);
+            if (!errors.isEmpty()) {
+                request.setAttribute("error", "Data validation failed! " + errors);
+                return mapping.findForward("showForm");
+            }
+
+            t004Service.saveCustomers(customers);
+            return new ActionForward("T002.do", true);
+        } catch (Exception e) {
+            request.setAttribute("error", "Error: " + e.getMessage());
+            return mapping.findForward("showForm");
+        }
+    }
+}
+
+-----------
+package form;
+
+import org.apache.struts.action.ActionForm;
+import java.io.InputStream;
+
+public class T004Form extends ActionForm {
+    private String fileName;
+    private InputStream fileInputStream;
+
+    public String getFileName() { return fileName; }
+    public void setFileName(String fileName) { this.fileName = fileName; }
+
+    public InputStream getFileInputStream() { return fileInputStream; }
+    public void setFileInputStream(InputStream fileInputStream) { this.fileInputStream = fileInputStream; }
+}
+-----------
+package service;
+
+import dto.T004Bean;
+import dao.T004Dao;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+
+public class T004Service {
+    private T004Dao t004Dao;
+
+    public void setT004Dao(T004Dao t004Dao) {
+        this.t004Dao = t004Dao;
+    }
+
+    public List<T004Bean> parseCSV(InputStream inputStream) throws Exception {
+        List<T004Bean> customers = new ArrayList<>();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        String line;
+        reader.readLine(); // Bỏ dòng tiêu đề
+
+        while ((line = reader.readLine()) != null) {
+            String[] data = line.split(",");
+            if (data.length < 6) continue;
+            customers.add(new T004Bean(data[0], data[1], data[2], data[3], data[4], data[5]));
+        }
+        reader.close();
+        return customers;
+    }
+
+    public List<String> validateData(List<T004Bean> customers) {
+        List<String> errors = new ArrayList<>();
+        for (T004Bean customer : customers) {
+            if (customer.getCustomerName().trim().isEmpty() || customer.getEmail().trim().isEmpty()) {
+                errors.add("Invalid data: " + customer.getCustomerId());
+            }
+        }
+        return errors;
+    }
+
+    public void saveCustomers(List<T004Bean> customers) {
+        for (T004Bean customer : customers) {
+            t004Dao.insertCustomer(customer);
+        }
+    }
+}
+----------
+package dao;
+
+import dto.T004Bean;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+import util.HibernateUtil;
+
+public class T004Dao {
+    public void insertCustomer(T004Bean customer) {
+        Session session = HibernateUtil.getSessionFactory().openSession();
+        Transaction tx = session.beginTransaction();
+        session.save(customer);
+        tx.commit();
+        session.close();
+    }
+}
+-----------
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+<%@ taglib uri="http://struts.apache.org/tags-bean" prefix="bean" %>
+<%@ taglib uri="http://struts.apache.org/tags-logic" prefix="logic" %>
+
+<html>
+<head>
+    <title>Import CSV</title>
+    <script>
+        function browseFile() {
+            var input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".csv";
+
+            input.onchange = function(event) {
+                var file = event.target.files[0];
+                if (file) {
+                    if (!file.name.endsWith(".csv")) {
+                        alert("Invalid file!");
+                        return;
+                    }
+                    document.getElementById("fileName").value = file.name;
+                    document.getElementById("fileInput").files = event.target.files;
+                }
+            };
+            input.click();
+        }
+
+        function validateFile() {
+            var fileName = document.getElementById("fileName").value;
+            if (fileName.trim() === "") {
+                alert("No file selected!");
+                return false;
+            }
+            return true;
+        }
+    </script>
+</head>
+<body>
+    <h2>Import CSV</h2>
+    <html:form action="/T004.do?method=importFile" enctype="multipart/form-data" method="post" onsubmit="return validateFile();">
+        <table>
+            <tr>
+                <td>File Name:</td>
+                <td><html:text property="fileName" size="50" readonly="true" styleId="fileName"/></td>
+                <td><input type="button" value="Browse" onclick="browseFile();"/></td>
+            </tr>
+            <tr>
+                <td colspan="3"><html:submit value="Import"/></td>
+            </tr>
+        </table>
+        <input type="file" id="fileInput" name="file" style="display:none"/>
+    </html:form>
+
+    <logic:present name="error">
+        <p style="color:red;"><bean:write name="error"/></p>
+    </logic:present>
+</body>
+</html>
+
+
