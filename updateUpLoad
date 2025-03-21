@@ -1,0 +1,237 @@
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.struts.action.*;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.*;
+
+public class ImportCustomerAction extends DispatchAction {
+    
+    public ActionForward importCsv(ActionMapping mapping, ActionForm form,
+                                   HttpServletRequest request, HttpServletResponse response) throws Exception {
+        
+        if (!ServletFileUpload.isMultipartContent(request)) {
+            request.setAttribute("message", "File import is not existed!");
+            return mapping.findForward("failure");
+        }
+        
+        List<FileItem> items = new ServletFileUpload(new DiskFileItemFactory()).parseRequest(request);
+        FileItem fileItem = null;
+        
+        for (FileItem item : items) {
+            if (!item.isFormField() && item.getName().endsWith(".csv")) {
+                fileItem = item;
+                break;
+            }
+        }
+        
+        if (fileItem == null) {
+            request.setAttribute("message", "File import is invalid!");
+            return mapping.findForward("failure");
+        }
+        
+        List<String> errors = new ArrayList<>();
+        List<Integer> insertedLines = new ArrayList<>();
+        List<Integer> updatedLines = new ArrayList<>();
+        
+        try (InputStream inputStream = fileItem.getInputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            
+            String line;
+            int lineNumber = 0;
+            Connection conn = DatabaseConnection.getConnection();
+            conn.setAutoCommit(false);
+            
+            while ((line = reader.readLine()) != null) {
+                lineNumber++;
+                String[] parts = line.split(",");
+                if (parts.length < 6) {
+                    errors.add("Line " + lineNumber + ": Invalid format");
+                    continue;
+                }
+                
+                String customerId = parts[0].trim();
+                String customerName = parts[1].trim();
+                String sex = parts[2].trim();
+                String birthday = parts[3].trim();
+                String email = parts[4].trim();
+                String address = parts[5].trim();
+                
+                if (customerName.isEmpty()) {
+                    errors.add("Line " + lineNumber + ": CUSTOMER_NAME is empty");
+                } else if (customerName.length() > 50) {
+                    errors.add("Line " + lineNumber + ": CUSTOMER_NAME is more than 50 characters");
+                }
+                
+                if (!sex.equals("Male") && !sex.equals("Female")) {
+                    errors.add("Line " + lineNumber + ": SEX=" + sex + " is invalid");
+                }
+                
+                if (!birthday.matches("\\d{4}/\\d{2}/\\d{2}")) {
+                    errors.add("Line " + lineNumber + ": BIRTHDAY=" + birthday + " is invalid");
+                }
+                
+                if (email.length() > 40) {
+                    errors.add("Line " + lineNumber + ": Value of EMAIL is more than 40 characters");
+                }
+                
+                if (address.length() > 256) {
+                    errors.add("Line " + lineNumber + ": Value of ADDRESS is more than 256 characters");
+                }
+                
+                if (!errors.isEmpty()) {
+                    continue;
+                }
+                
+                if (customerId.isEmpty()) {
+                    // INSERT new customer
+                    PreparedStatement insertStmt = conn.prepareStatement("INSERT INTO MSTCUSTOMER (CUSTOMER_NAME, SEX, BIRTHDAY, EMAIL, ADDRESS) VALUES (?, ?, ?, ?, ?)");
+                    insertStmt.setString(1, customerName);
+                    insertStmt.setString(2, sex);
+                    insertStmt.setString(3, birthday);
+                    insertStmt.setString(4, email);
+                    insertStmt.setString(5, address);
+                    insertStmt.executeUpdate();
+                    insertedLines.add(lineNumber);
+                } else {
+                    // Check if CUSTOMER_ID exists
+                    PreparedStatement checkStmt = conn.prepareStatement("SELECT COUNT(*) FROM MSTCUSTOMER WHERE CUSTOMER_ID = ?");
+                    checkStmt.setString(1, customerId);
+                    ResultSet rs = checkStmt.executeQuery();
+                    rs.next();
+                    if (rs.getInt(1) == 0) {
+                        errors.add("Line " + lineNumber + ": CUSTOMER_ID=" + customerId + " is not existed");
+                        continue;
+                    }
+                    
+                    // UPDATE existing customer
+                    PreparedStatement updateStmt = conn.prepareStatement("UPDATE MSTCUSTOMER SET CUSTOMER_NAME=?, SEX=?, BIRTHDAY=?, EMAIL=?, ADDRESS=? WHERE CUSTOMER_ID=?");
+                    updateStmt.setString(1, customerName);
+                    updateStmt.setString(2, sex);
+                    updateStmt.setString(3, birthday);
+                    updateStmt.setString(4, email);
+                    updateStmt.setString(5, address);
+                    updateStmt.setString(6, customerId);
+                    updateStmt.executeUpdate();
+                    updatedLines.add(lineNumber);
+                }
+            }
+            
+            if (!errors.isEmpty()) {
+                conn.rollback();
+                request.setAttribute("message", String.join("<br>", errors));
+                return mapping.findForward("failure");
+            }
+            
+            conn.commit();
+            request.setAttribute("message", "Customer data have been imported successfully.<br>Inserted line(s): " + insertedLines + "<br>Updated line(s): " + updatedLines);
+            return mapping.findForward("success");
+            
+        } catch (Exception e) {
+            request.setAttribute("message", "Error processing file: " + e.getMessage());
+            return mapping.findForward("failure");
+        }
+    }
+}
+
+-------------------------
+3 check js
+-------
+<script>
+    function handleFileSelect(event) {
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.getElementById('fileLabel');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert("File import is not existed!");
+            return;
+        }
+
+        if (!file.name.endsWith(".csv")) {
+            alert("File import is invalid!");
+            fileInput.value = ''; 
+            return;
+        }
+
+        fileLabel.textContent = file.name;
+    }
+
+    function validateAndSubmit() {
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert("File import is not existed!");
+            return false;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const content = event.target.result.trim();
+            if (content.length === 0) {
+                alert("File import is empty!");
+                return false;
+            }
+
+            document.getElementById('importForm').submit();
+        };
+
+        reader.readAsText(file);
+    }
+</script>
+
+public List<Customer> parseCSVFile(InputStream inputStream) throws IOException {
+    List<Customer> customers = new ArrayList<>();
+    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+
+    String line;
+    int lineNumber = 0;
+    while ((line = reader.readLine()) != null) {
+        lineNumber++;
+        if (lineNumber == 1) continue; // Bỏ qua dòng tiêu đề
+
+        String[] columns = line.split(",");
+
+        // Kiểm tra số cột
+        if (columns.length < 6) {
+            throw new RuntimeException("Line " + lineNumber + ": Invalid column count!");
+        }
+
+        // Kiểm tra dữ liệu
+        String customerName = columns[1].trim();
+        if (customerName.isEmpty() || customerName.length() > 50) {
+            throw new RuntimeException("Line " + lineNumber + ": CUSTOMER_NAME is invalid!");
+        }
+
+        String sex = columns[2].trim();
+        if (!sex.equals("Male") && !sex.equals("Female")) {
+            throw new RuntimeException("Line " + lineNumber + ": SEX is invalid!");
+        }
+
+        String birthday = columns[3].trim();
+        if (!birthday.matches("^\\d{4}/\\d{2}/\\d{2}$")) {
+            throw new RuntimeException("Line " + lineNumber + ": BIRTHDAY format is invalid!");
+        }
+
+        String email = columns[4].trim();
+        if (!email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            throw new RuntimeException("Line " + lineNumber + ": EMAIL is invalid!");
+        }
+
+        String address = columns[5].trim();
+        if (address.length() > 256) {
+            throw new RuntimeException("Line " + lineNumber + ": ADDRESS is too long!");
+        }
+
+        // Thêm vào danh sách khách hàng hợp lệ
+        customers.add(new Customer(customerName, sex, birthday, email, address));
+    }
+    return customers;
+}
+
