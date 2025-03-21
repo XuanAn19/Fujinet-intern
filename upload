@@ -1,3 +1,36 @@
+public ActionForward exportCSV(ActionMapping mapping, ActionForm form, HttpServletRequest request, HttpServletResponse response) throws Exception {
+    // Lấy thông tin tìm kiếm từ request
+    String customerName = request.getParameter("customerName");
+    String birthDayFrom = request.getParameter("birthDayFrom");
+    String birthDayTo = request.getParameter("birthDayTo");
+
+    // Lấy danh sách khách hàng theo tiêu chí tìm kiếm
+    List<CustomerDto> customers = t002Service.searchCustomers(customerName, birthDayFrom, birthDayTo);
+
+    // Thiết lập header để xuất file CSV
+    response.setContentType("text/csv");
+    response.setHeader("Content-Disposition", "attachment; filename=customers.csv");
+
+    // Ghi dữ liệu vào file CSV
+    PrintWriter writer = response.getWriter();
+    writer.println("ID,Tên khách hàng,Giới tính,Ngày sinh,Email,Địa chỉ");
+
+    for (CustomerDto customer : customers) {
+        writer.println(customer.getCustomerID() + "," +
+                       customer.getCustomerName() + "," +
+                       (customer.getSex().equals("M") ? "Nam" : "Nữ") + "," +
+                       customer.getBirthday() + "," +
+                       customer.getEmail() + "," +
+                       customer.getAddress());
+    }
+
+    writer.flush();
+    writer.close();
+
+    return null; // Không chuyển trang, chỉ xuất file
+}
+
+
 <form action="importCustomer.do" method="post" enctype="multipart/form-data">
     <input type="file" name="file"/>
     <input type="submit" value="Import"/>
