@@ -114,4 +114,113 @@ public class T002Action extends DispatchAction {
     }
 }
 
+---------------
+public class T003Action extends DispatchAction {
+    private T003Service t003Service;
+
+    @Override
+    public void setServlet(ActionServlet servlet) {
+        super.setServlet(servlet);
+        ApplicationContext act = WebApplicationContextUtils
+            .getRequiredWebApplicationContext(servlet.getServletContext());
+        t003Service = (T003Service) act.getBean("t003Service");
+    }
+
+    /**
+     * Kiểm tra session có hợp lệ không.
+     */
+    private boolean checkSession(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        return session != null && session.getAttribute(Constains.USERNAME) != null;
+    }
+
+    /**
+     * Xử lý thêm mới khách hàng.
+     */
+    public ActionForward addCustomer(ActionMapping mapping, ActionForm form,
+                                     HttpServletRequest request, HttpServletResponse response) throws Exception {
+        if (!checkSession(request)) {
+            return mapping.findForward(Constains.FAILURE);
+        }
+
+        HttpSession session = request.getSession();
+        Integer PSN_CD = (Integer) session.getAttribute(Constains.PSN_CD);
+        T003Bean customerForm = (T003Bean) form;
+
+        CustomerDto customer = new CustomerDto(
+            customerForm.getCustomerId(),
+            customerForm.getTxtCustomerName(),
+            customerForm.getCboSex(),
+            customerForm.getTxtBirthday(),
+            customerForm.getTxtEmail(),
+            customerForm.getTxaAddress()
+        );
+
+        if (t003Service.addCustomer(customer, PSN_CD)) {
+            return mapping.findForward(Constains.LIST);
+        } else {
+            request.setAttribute(Constains.CUSTOMER, customer);
+            return mapping.findForward(Constains.SUCCESS);
+        }
+    }
+
+    /**
+     * Xử lý cập nhật thông tin khách hàng.
+     */
+    public ActionForward editCustomer(ActionMapping mapping, ActionForm form,
+                                      HttpServletRequest request, HttpServletResponse response) throws Exception {
+        if (!checkSession(request)) {
+            return mapping.findForward(Constains.FAILURE);
+        }
+
+        HttpSession session = request.getSession();
+        Integer PSN_CD = (Integer) session.getAttribute(Constains.PSN_CD);
+        T003Bean customerForm = (T003Bean) form;
+
+        CustomerDto customer = new CustomerDto(
+            customerForm.getCustomerId(),
+            customerForm.getTxtCustomerName(),
+            customerForm.getCboSex(),
+            customerForm.getTxtBirthday(),
+            customerForm.getTxtEmail(),
+            customerForm.getTxaAddress()
+        );
+
+        if (t003Service.updateCustomer(customer, PSN_CD)) {
+            return mapping.findForward(Constains.LIST);
+        } else {
+            request.setAttribute(Constains.CUSTOMER, customer);
+            return mapping.findForward(Constains.SUCCESS);
+        }
+    }
+
+    /**
+     * Lấy thông tin khách hàng để hiển thị trước khi sửa.
+     */
+    public ActionForward getCustomerById(ActionMapping mapping, ActionForm form,
+                                         HttpServletRequest request, HttpServletResponse response) throws Exception {
+        if (!checkSession(request)) {
+            return mapping.findForward(Constains.FAILURE);
+        }
+
+        String customerId = request.getParameter(Constains.CUSTOMER_ID);
+        CustomerDto customer = t003Service.getCustomerById(Integer.parseInt(customerId));
+
+        if (customer != null) {
+            T003Bean customerForm = (T003Bean) form;
+            customerForm.setCustomerId(customer.getCustomerID());
+            customerForm.setTxtCustomerName(customer.getCustomerName());
+            customerForm.setCboSex(customer.getSex());
+            customerForm.setTxtBirthday(customer.getBirthday());
+            customerForm.setTxtEmail(customer.getEmail());
+            customerForm.setTxaAddress(customer.getAddress());
+            customerForm.setAction(Constains.EDIT);
+
+            request.setAttribute(Constains.CUSTOMER, customer);
+            return mapping.findForward(Constains.SUCCESS);
+        }
+
+        return mapping.findForward(Constains.FAILURE);
+    }
+}
 
