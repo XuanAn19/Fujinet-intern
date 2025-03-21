@@ -1,0 +1,656 @@
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+<%@ taglib uri="http://struts.apache.org/tags-bean" prefix="bean" %>
+<%@ taglib uri="http://struts.apache.org/tags-logic" prefix="logic" %>
+
+<html>
+<head>
+    <title>Import CSV</title>
+    <script>
+        function browseFile() {
+            var input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".csv";
+
+            input.onchange = function(event) {
+                var file = event.target.files[0];
+                if (file) {
+                    if (!file.name.endsWith(".csv")) {
+                        alert("Invalid file!");
+                        return;
+                    }
+                    document.getElementById("fileName").value = file.name;
+                    document.getElementById("fileInput").files = event.target.files;
+                }
+            };
+            input.click();
+        }
+
+        function validateFile() {
+            var fileName = document.getElementById("fileName").value;
+            if (fileName.trim() === "") {
+                alert("No file selected!");
+                return false;
+            }
+            return true;
+        }
+    </script>
+</head>
+<body>
+    <h2>Import CSV</h2>
+    <html:form action="/T004.do?method=importFile" enctype="multipart/form-data" method="post" onsubmit="return validateFile();">
+        <table>
+            <tr>
+                <td>File Name:</td>
+                <td><html:text property="fileName" size="50" readonly="true" styleId="fileName"/></td>
+                <td><input type="button" value="Browse" onclick="browseFile();"/></td>
+            </tr>
+            <tr>
+                <td colspan="3"><html:submit value="Import"/></td>
+            </tr>
+        </table>
+        <input type="file" id="fileInput" name="file" style="display:none"/>
+    </html:form>
+
+    <logic:present name="error">
+        <p style="color:red;"><bean:write name="error"/></p>
+    </logic:present>
+</body>
+</html>
+-----------------
+package action;
+
+import dto.T004Bean;
+import form.T004Form;
+import service.T004Service;
+import org.apache.struts.actions.DispatchAction;
+import org.apache.struts.action.*;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.InputStream;
+import java.util.List;
+
+public class T004Action extends DispatchAction {
+    private T004Service t004Service;
+
+    public void setT004Service(T004Service t004Service) {
+        this.t004Service = t004Service;
+    }
+
+    public ActionForward importFile(ActionMapping mapping, ActionForm form,
+                                    HttpServletRequest request, HttpServletResponse response) {
+        T004Form importForm = (T004Form) form;
+        String fileName = importForm.getFileName();
+
+        if (fileName == null || !fileName.endsWith(".csv")) {
+            request.setAttribute("error", "Invalid CSV file!");
+            return mapping.findForward("showForm");
+        }
+
+        try {
+            InputStream inputStream = importForm.getFileInputStream();
+            List<T004Bean> customers = t004Service.parseCSV(inputStream);
+
+            List<String> errors = t004Service.validateData(customers);
+            if (!errors.isEmpty()) {
+                request.setAttribute("error", "Data validation failed! " + errors);
+                return mapping.findForward("showForm");
+            }
+
+            t004Service.saveCustomers(customers);
+            return new ActionForward("T002.do", true);
+        } catch (Exception e) {
+            request.setAttribute("error", "Error: " + e.getMessage());
+            return mapping.findForward("showForm");
+        }
+    }
+}
+----------------
+package service;
+
+import dto.T004Bean;
+import dao.T004Dao;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+
+public class T004Service {
+    private T004Dao t004Dao;
+
+    public void setT004Dao(T004Dao t004Dao) {
+        this.t004Dao = t004Dao;
+    }
+
+    public List<T004Bean> parseCSV(InputStream inputStream) throws Exception {
+        List<T004Bean> customers = new ArrayList<>();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        String line;
+        reader.readLine(); // Bỏ qua dòng tiêu đề
+
+        while ((line = reader.readLine()) != null) {
+            String[] data = line.split(",");
+            if (data.length < 6) continue;
+            customers.add(new T004Bean(data[0].trim(), data[1].trim(), data[2].trim(), 
+                                       data[3].trim(), data[4].trim(), data[5].trim()));
+        }
+        reader.close();
+        return customers;
+    }
+
+    public List<String> validateData(List<T004Bean> customers) {
+        List<String> errors = new ArrayList<>();
+        for (T004Bean customer : customers) {
+            if (customer.getCustomerName().trim().isEmpty() || customer.getEmail().trim().isEmpty()) {
+                errors.add("Invalid data: " + customer.getCustomerId());
+            }
+        }
+        return errors;
+    }
+
+    public void saveCustomers(List<T004Bean> customers) {
+        for (T004Bean customer : customers) {
+            t004Dao.saveOrUpdateCustomer(customer);
+        }
+    }
+}
+
+-------------------
+package dao;
+
+import dto.T004Bean;
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+import org.hibernate.query.Query;
+import util.HibernateUtil;
+
+import java.util.List;
+
+public class T004Dao {
+    public void saveOrUpdateCustomer(T004Bean customer) {
+        Session session = HibernateUtil.getSessionFactory().openSession();
+        Transaction tx = session.beginTransaction();
+
+        if (customer.getCustomerId() == null || customer.getCustomerId().trim().isEmpty()) {
+            // Insert mới nếu không có CUSTOMER_ID
+            session.save(customer);
+        } else {
+            // Kiểm tra nếu CUSTOMER_ID đã tồn tại
+            T004Bean existingCustomer = session.get(T004Bean.class, customer.getCustomerId());
+            if (existingCustomer != null) {
+                // Chỉ update nếu có sự thay đổi
+                boolean isChanged = false;
+
+                if (!existingCustomer.getCustomerName().equals(customer.getCustomerName())) {
+                    existingCustomer.setCustomerName(customer.getCustomerName());
+                    isChanged = true;
+                }
+                if (!existingCustomer.getSex().equals(customer.getSex())) {
+                    existingCustomer.setSex(customer.getSex());
+                    isChanged = true;
+                }
+                if (!existingCustomer.getBirthday().equals(customer.getBirthday())) {
+                    existingCustomer.setBirthday(customer.getBirthday());
+                    isChanged = true;
+                }
+                if (!existingCustomer.getEmail().equals(customer.getEmail())) {
+                    existingCustomer.setEmail(customer.getEmail());
+                    isChanged = true;
+                }
+                if (!existingCustomer.getAddress().equals(customer.getAddress())) {
+                    existingCustomer.setAddress(customer.getAddress());
+                    isChanged = true;
+                }
+
+                if (isChanged) {
+                    session.update(existingCustomer);
+                }
+            } else {
+                // Nếu không tìm thấy trong DB, thì insert mới
+                session.save(customer);
+            }
+        }
+        tx.commit();
+        session.close();
+    }
+}
+
+----------------
+--------------------------------------------------------
+
+package fjs.cs;
+
+import fjs.cs.service.T002Service;
+import fjs.cs.dto.T002Dto;
+import org.apache.struts.action.*;
+import javax.servlet.http.*;
+import java.io.*;
+import java.text.*;
+import java.util.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+
+@Controller
+public class T002ImportAction extends Action {
+    
+    @Autowired
+    private T002Service t002Service;
+
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form, HttpServletRequest request, HttpServletResponse response) throws Exception {
+        FormFile file = ((T002Form) form).getFile();
+        
+        // 1. Kiểm tra file nhập
+        if (file == null || file.getFileSize() == 0) {
+            request.setAttribute("error", "File import is not existed !");
+            return mapping.findForward("error");
+        }
+        
+        String fileName = file.getFileName();
+        if (!fileName.endsWith(".csv")) {
+            request.setAttribute("error", "File import is invalid !");
+            return mapping.findForward("error");
+        }
+
+        InputStream inputStream = file.getInputStream();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"));
+        
+        List<String> insertLines = new ArrayList<>();
+        List<String> updateLines = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+        
+        String line;
+        int lineNumber = 0;
+        List<T002Dto> customers = new ArrayList<>();
+        
+        while ((line = reader.readLine()) != null) {
+            lineNumber++;
+            String[] fields = line.split(",");
+            
+            if (fields.length < 6) {
+                errors.add("Line " + lineNumber + ": Missing required fields");
+                continue;
+            }
+
+            String customerId = fields[0].trim();
+            String customerName = fields[1].trim();
+            String sex = fields[2].trim();
+            String birthday = fields[3].trim();
+            String email = fields[4].trim();
+            String address = fields[5].trim();
+
+            // 2. Kiểm tra dữ liệu
+            if (!customerId.isEmpty() && !t002Service.isCustomerExist(customerId)) {
+                errors.add("Line " + lineNumber + " : CUSTOMER_ID=" + customerId + " is not existed");
+            }
+
+            if (customerName.isEmpty()) {
+                errors.add("Line " + lineNumber + " : CUSTOMER_NAME is empty");
+            } else if (customerName.length() > 50) {
+                errors.add("Line " + lineNumber + " : Value of CUSTOMER_NAME is more than 50 characters");
+            }
+
+            if (!sex.equalsIgnoreCase("Male") && !sex.equalsIgnoreCase("Female")) {
+                errors.add("Line " + lineNumber + " : SEX=" + sex + " is invalid");
+            }
+
+            Date birthDate = null;
+            try {
+                birthDate = new SimpleDateFormat("yyyy-MM-dd").parse(birthday);
+            } catch (ParseException e) {
+                errors.add("Line " + lineNumber + " : BIRTHDAY=" + birthday + " is invalid");
+            }
+
+            if (!email.matches("^[\\w.-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+                errors.add("Line " + lineNumber + " : EMAIL=" + email + " is invalid");
+            } else if (email.length() > 40) {
+                errors.add("Line " + lineNumber + " : Value of EMAIL is more than 40 characters");
+            }
+
+            if (address.length() > 256) {
+                errors.add("Line " + lineNumber + " : Value of ADDRESS is more than 256 characters");
+            }
+
+            // 3. Xử lý Insert/Update
+            if (errors.isEmpty()) {
+                T002Dto customer = new T002Dto(customerId, customerName, sex, birthDate, email, address);
+                customers.add(customer);
+            }
+        }
+
+        // Nếu có lỗi, hiển thị lỗi và không thực hiện import
+        if (!errors.isEmpty()) {
+            request.setAttribute("errors", errors);
+            return mapping.findForward("error");
+        }
+
+        // 4. Import dữ liệu (Insert hoặc Update)
+        for (T002Dto customer : customers) {
+            if (customer.getCustomerId().isEmpty()) {
+                // Insert
+                String newCustomerId = t002Service.insertCustomer(customer);
+                insertLines.add("Line " + lineNumber + ": CUSTOMER_ID=" + newCustomerId);
+            } else {
+                // Update nếu có thay đổi
+                boolean updated = t002Service.updateCustomerIfChanged(customer);
+                if (updated) {
+                    updateLines.add("Line " + lineNumber + ": CUSTOMER_ID=" + customer.getCustomerId());
+                }
+            }
+        }
+
+        request.setAttribute("successMessage", "Customer data have been imported successfully.");
+        request.setAttribute("insertedLines", String.join(", ", insertLines));
+        request.setAttribute("updatedLines", String.join(", ", updateLines));
+
+        return mapping.findForward("success");
+    }
+}
+
+
+package fjs.cs.service;
+
+import fjs.cs.dao.T002Dao;
+import fjs.cs.dto.T002Dto;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import java.util.Date;
+
+@Service
+public class T002Service {
+    
+    @Autowired
+    private T002Dao t002Dao;
+
+    public boolean isCustomerExist(String customerId) {
+        return t002Dao.getCustomerById(customerId) != null;
+    }
+
+    public String insertCustomer(T002Dto customer) {
+        customer.setInsertYmd(new Date());
+        customer.setUpdateYmd(new Date());
+        return t002Dao.insertCustomer(customer);
+    }
+
+    public boolean updateCustomerIfChanged(T002Dto newCustomer) {
+    T002Dto oldCustomer = t002Dao.getCustomerById(newCustomer.getCustomerId());
+    if (oldCustomer == null) return false;
+
+    // Kiểm tra từng cột để xác định có sự thay đổi không
+    boolean isChanged = 
+        !Objects.equals(oldCustomer.getCustomerName(), newCustomer.getCustomerName()) ||
+        !Objects.equals(oldCustomer.getSex(), newCustomer.getSex()) ||
+        !Objects.equals(oldCustomer.getBirthday(), newCustomer.getBirthday()) ||
+        !Objects.equals(oldCustomer.getEmail(), newCustomer.getEmail()) ||
+        !Objects.equals(oldCustomer.getAddress(), newCustomer.getAddress());
+
+    if (isChanged) {
+        newCustomer.setUpdateYmd(new Date());
+        t002Dao.updateCustomer(newCustomer);
+        return true;
+    }
+    return false;
+}
+
+}
+
+package fjs.cs.dao;
+
+import fjs.cs.dto.T002Dto;
+import org.hibernate.SessionFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+import org.hibernate.Session;
+
+@Repository
+public class T002Dao {
+
+    @Autowired
+    private SessionFactory sessionFactory;
+
+    public T002Dto getCustomerById(String customerId) {
+        return (T002Dto) sessionFactory.getCurrentSession().get(T002Dto.class, customerId);
+    }
+
+    public String insertCustomer(T002Dto customer) {
+        return (String) sessionFactory.getCurrentSession().save(customer);
+    }
+
+    public void updateCustomer(T002Dto customer) {
+        sessionFactory.getCurrentSession().update(customer);
+    }
+}
+---------------------
+----------------------------------------------------------------
+package fjs.cs.action;
+
+import java.io.*;
+import java.util.*;
+
+import javax.servlet.http.*;
+
+import org.apache.commons.io.FilenameUtils;
+import org.apache.struts.action.*;
+
+import fjs.cs.bean.T004Bean;
+import fjs.cs.service.T004Service;
+
+public class T004Action extends DispatchAction {
+
+    private final T004Service t004Service = new T004Service();
+
+    // Hiển thị trang Import
+    public ActionForward show(ActionMapping mapping, ActionForm form,
+                              HttpServletRequest request, HttpServletResponse response) {
+        return mapping.findForward("show");
+    }
+
+    // Xử lý Import CSV
+    public ActionForward importCsv(ActionMapping mapping, ActionForm form,
+                                   HttpServletRequest request, HttpServletResponse response) {
+        T004Bean t004Bean = (T004Bean) form;
+        FormFile file = t004Bean.getFile();
+
+        // 1. Kiểm tra file
+        if (file == null || file.getFileSize() == 0) {
+            request.setAttribute("message", "File import is not existed !");
+            return mapping.findForward("show");
+        }
+
+        String fileName = file.getFileName();
+        if (!FilenameUtils.getExtension(fileName).equalsIgnoreCase("csv")) {
+            request.setAttribute("message", "File import is invalid !");
+            return mapping.findForward("show");
+        }
+
+        // Đọc file CSV
+        List<String> errors = new ArrayList<>();
+        List<Integer> insertedLines = new ArrayList<>();
+        List<Integer> updatedLines = new ArrayList<>();
+
+        try (InputStream inputStream = file.getInputStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"))) {
+
+            String line;
+            int lineNum = 0;
+            while ((line = reader.readLine()) != null) {
+                lineNum++;
+
+                // Bỏ qua dòng tiêu đề (Header)
+                if (lineNum == 1) continue;
+
+                // Tách dòng CSV
+                String[] values = line.split(",");
+                if (values.length < 6) {
+                    errors.add("Line " + lineNum + ": Missing columns");
+                    continue;
+                }
+
+                String customerId = values[0].trim();
+                String customerName = values[1].trim();
+                String sex = values[2].trim();
+                String birthday = values[3].trim();
+                String email = values[4].trim();
+                String address = values[5].trim();
+
+                // Kiểm tra dữ liệu
+                if (!t004Service.validateData(lineNum, customerId, customerName, sex, birthday, email, address, errors)) {
+                    continue;
+                }
+
+                // Insert / Update dữ liệu
+                if (t004Service.processData(customerId, customerName, sex, birthday, email, address)) {
+                    updatedLines.add(lineNum);
+                } else {
+                    insertedLines.add(lineNum);
+                }
+            }
+        } catch (IOException e) {
+            request.setAttribute("message", "Error reading file: " + e.getMessage());
+            return mapping.findForward("show");
+        }
+
+        // Kết quả Import
+        if (errors.isEmpty()) {
+            request.setAttribute("message", "Customer data imported successfully. "
+                    + "Inserted line(s): " + insertedLines + ". "
+                    + "Updated line(s): " + updatedLines);
+            return mapping.findForward("success");
+        } else {
+            request.setAttribute("errors", errors);
+            return mapping.findForward("show");
+        }
+    }
+}
+
+----
+package fjs.cs.service;
+
+import java.text.*;
+import java.util.*;
+
+import fjs.cs.dao.T004Dao;
+import fjs.cs.dto.T004Dto;
+
+public class T004Service {
+    private final T004Dao t004Dao = new T004Dao();
+
+    public boolean validateData(int lineNum, String customerId, String customerName,
+                                String sex, String birthday, String email, String address, List<String> errors) {
+        if (customerId.isEmpty() && customerName.isEmpty()) {
+            errors.add("Line " + lineNum + ": CUSTOMER_NAME is empty");
+            return false;
+        }
+
+        if (customerName.length() > 50) {
+            errors.add("Line " + lineNum + ": CUSTOMER_NAME exceeds 50 characters");
+            return false;
+        }
+
+        if (!sex.equalsIgnoreCase("Male") && !sex.equalsIgnoreCase("Female")) {
+            errors.add("Line " + lineNum + ": SEX=" + sex + " is invalid");
+            return false;
+        }
+
+        try {
+            new SimpleDateFormat("yyyy/MM/dd").parse(birthday);
+        } catch (ParseException e) {
+            errors.add("Line " + lineNum + ": BIRTHDAY=" + birthday + " is invalid");
+            return false;
+        }
+
+        if (email.length() > 40) {
+            errors.add("Line " + lineNum + ": EMAIL exceeds 40 characters");
+            return false;
+        }
+
+        if (address.length() > 256) {
+            errors.add("Line " + lineNum + ": ADDRESS exceeds 256 characters");
+            return false;
+        }
+        return true;
+    }
+
+    public boolean processData(String customerId, String customerName, String sex,
+                               String birthday, String email, String address) {
+        T004Dto customer = new T004Dto(customerId, customerName, sex, birthday, email, address);
+        return t004Dao.insertOrUpdateCustomer(customer);
+    }
+}
+=----------------------
+package fjs.cs.dao;
+
+import fjs.cs.dto.T004Dto;
+
+public class T004Dao {
+    public boolean insertOrUpdateCustomer(T004Dto customer) {
+        // Kiểm tra Customer_ID
+        T004Dto existingCustomer = getCustomerById(customer.getCustomerId());
+        if (existingCustomer == null) {
+            insertCustomer(customer);
+            return false;
+        } else if (!existingCustomer.equals(customer)) {
+            updateCustomer(customer);
+            return true;
+        }
+        return false;
+    }
+
+    public T004Dto getCustomerById(String customerId) {
+        // TODO: Viết truy vấn lấy Customer từ DB
+        return null;
+    }
+
+    public void insertCustomer(T004Dto customer) {
+        // TODO: Viết code insert vào DB
+    }
+
+    public void updateCustomer(T004Dto customer) {
+        // TODO: Viết code update vào DB
+    }
+}
+---------------------
+package fjs.cs.bean;
+
+import org.apache.struts.upload.FormFile;
+import org.apache.struts.action.ActionForm;
+
+public class T004Bean extends ActionForm {
+    private FormFile file;
+
+    public FormFile getFile() {
+        return file;
+    }
+
+    public void setFile(FormFile file) {
+        this.file = file;
+    }
+}
+--------------------------
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+
+<html>
+<head><title>Import CSV</title></head>
+<body>
+    <html:form action="/importCsv" method="post" enctype="multipart/form-data">
+        <table>
+            <tr>
+                <td>Select File:</td>
+                <td><html:file property="file"/></td>
+            </tr>
+            <tr>
+                <td colspan="2"><html:submit value="Import"/></td>
+            </tr>
+        </table>
+    </html:form>
+</body>
+</html>
+---------------------
+<action path="/import" type="fjs.cs.action.T004Action" parameter="method">
+    <forward name="show" path="/WEB-INF/jsp/T004.jsp"/>
+    <forward name="success" path="/T002.do"/>
+</action>
+
+
+
