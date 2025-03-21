@@ -309,3 +309,136 @@ public ActionForward init(ActionMapping mapping, ActionForm form,
         </tr>
     </logic:iterate>
 </table>
+-------------------
+-----------------------
+Ràng buộc
+<html:form action="/T005Action">
+    <table>
+        <tr>
+            <td>
+                <h3>Các cột chưa hiển thị</h3>
+                <select id="hiddenColumns" multiple size="5">
+                    <logic:iterate id="column" name="T005Form" property="hiddenColumns">
+                        <option value="<bean:write name="column"/>"><bean:write name="column"/></option>
+                    </logic:iterate>
+                </select>
+            </td>
+            <td>
+                <button type="button" id="btnRight">→</button><br>
+                <button type="button" id="btnLeft">←</button><br>
+                <button type="button" id="btnUp">↑</button><br>
+                <button type="button" id="btnDown">↓</button>
+            </td>
+            <td>
+                <h3>Các cột đang hiển thị</h3>
+                <select id="visibleColumns" multiple size="5">
+                    <logic:iterate id="column" name="T005Form" property="visibleColumns">
+                        <option value="<bean:write name="column"/>"><bean:write name="column"/></option>
+                    </logic:iterate>
+                </select>
+            </td>
+        </tr>
+    </table>
+
+    <html:submit property="save">Lưu</html:submit>
+    <html:submit property="cancel">Hủy</html:submit>
+</html:form>
+
+<script src="scripts/t005.js"></script>
+
+js----------
+document.addEventListener("DOMContentLoaded", function () {
+    const btnRight = document.getElementById("btnRight");
+    const btnLeft = document.getElementById("btnLeft");
+    const btnUp = document.getElementById("btnUp");
+    const btnDown = document.getElementById("btnDown");
+
+    const hiddenColumns = document.getElementById("hiddenColumns");
+    const visibleColumns = document.getElementById("visibleColumns");
+
+    // Disable nút nếu danh sách trống
+    function updateButtonStates() {
+        btnRight.disabled = hiddenColumns.options.length === 0;
+        btnLeft.disabled = visibleColumns.options.length === 0;
+        btnUp.disabled = visibleColumns.selectedIndex === -1;
+        btnDown.disabled = visibleColumns.selectedIndex === -1;
+    }
+
+    // Khi chọn danh sách, cập nhật trạng thái nút
+    hiddenColumns.addEventListener("change", updateButtonStates);
+    visibleColumns.addEventListener("change", updateButtonStates);
+
+    // Nút →: Chuyển cột từ hiddenColumns sang visibleColumns
+    btnRight.addEventListener("click", function () {
+        if (hiddenColumns.selectedIndex === -1) {
+            alert("Chưa chọn cột!");
+            return;
+        }
+        while (hiddenColumns.selectedIndex !== -1) {
+            let selectedOption = hiddenColumns.options[hiddenColumns.selectedIndex];
+            visibleColumns.appendChild(selectedOption);
+        }
+        updateButtonStates();
+    });
+
+    // Nút ←: Chuyển cột từ visibleColumns về hiddenColumns
+    btnLeft.addEventListener("click", function () {
+        if (visibleColumns.selectedIndex === -1) {
+            alert("Chưa chọn cột!");
+            return;
+        }
+        let selectedOption = visibleColumns.options[visibleColumns.selectedIndex];
+        if (selectedOption.value === "customerId" || selectedOption.value === "checkbox") {
+            alert(`${selectedOption.text} không được chọn`);
+            return;
+        }
+        while (visibleColumns.selectedIndex !== -1) {
+            let selectedOption = visibleColumns.options[visibleColumns.selectedIndex];
+            hiddenColumns.appendChild(selectedOption);
+        }
+        updateButtonStates();
+    });
+
+    // Nút ↑: Di chuyển cột lên
+    btnUp.addEventListener("click", function () {
+        let selectedIndex = visibleColumns.selectedIndex;
+        if (selectedIndex === -1) {
+            alert("Chưa chọn cột!");
+            return;
+        }
+        if (selectedIndex === 0) return; // Nếu đang ở đầu, không làm gì cả
+
+        let options = visibleColumns.options;
+        let selectedOption = options[selectedIndex];
+
+        // Hoán đổi vị trí
+        visibleColumns.removeChild(selectedOption);
+        visibleColumns.insertBefore(selectedOption, options[selectedIndex - 1]);
+
+        // Giữ trạng thái chọn
+        visibleColumns.selectedIndex = selectedIndex - 1;
+    });
+
+    // Nút ↓: Di chuyển cột xuống
+    btnDown.addEventListener("click", function () {
+        let selectedIndex = visibleColumns.selectedIndex;
+        if (selectedIndex === -1) {
+            alert("Chưa chọn cột!");
+            return;
+        }
+        if (selectedIndex === visibleColumns.options.length - 1) return; // Nếu đang ở cuối, không làm gì cả
+
+        let options = visibleColumns.options;
+        let selectedOption = options[selectedIndex];
+
+        // Hoán đổi vị trí
+        visibleColumns.removeChild(selectedOption);
+        visibleColumns.insertBefore(selectedOption, options[selectedIndex + 1].nextSibling);
+
+        // Giữ trạng thái chọn
+        visibleColumns.selectedIndex = selectedIndex + 1;
+    });
+
+    updateButtonStates();
+});
+
