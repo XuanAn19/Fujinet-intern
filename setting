@@ -1,0 +1,530 @@
+js-----------
+document.addEventListener("DOMContentLoaded", function () {
+    const hiddenColumns = document.getElementById("hiddenColumns");
+    const visibleColumns = document.getElementById("visibleColumns");
+    const btnRight = document.getElementById("btnRight");
+    const btnLeft = document.getElementById("btnLeft");
+    const btnUp = document.getElementById("btnUp");
+    const btnDown = document.getElementById("btnDown");
+    const btnSave = document.getElementById("btnSave");
+    const btnCancel = document.getElementById("btnCancel");
+
+    let selectedColumn = null;
+
+    // Chọn cột
+    function selectColumn(event) {
+        if (selectedColumn) {
+            selectedColumn.classList.remove("selected");
+        }
+        selectedColumn = event.target;
+        selectedColumn.classList.add("selected");
+    }
+
+    // Di chuyển cột sang phải (ẩn -> hiển thị)
+    btnRight.addEventListener("click", function () {
+        if (selectedColumn && selectedColumn.parentElement === hiddenColumns) {
+            visibleColumns.appendChild(selectedColumn);
+            selectedColumn = null;
+        } else {
+            alert("Please select a column from the hidden list.");
+        }
+    });
+
+    // Di chuyển cột sang trái (hiển thị -> ẩn)
+    btnLeft.addEventListener("click", function () {
+        if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+            if (selectedColumn.dataset.column === "CheckBox" || selectedColumn.dataset.column === "CustomerID") {
+                alert(`[${selectedColumn.textContent}] cannot be removed!`);
+            } else {
+                hiddenColumns.appendChild(selectedColumn);
+                selectedColumn = null;
+            }
+        } else {
+            alert("Please select a column from the visible list.");
+        }
+    });
+
+    // Di chuyển cột lên trên
+    btnUp.addEventListener("click", function () {
+        if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+            const prev = selectedColumn.previousElementSibling;
+            if (prev) {
+                visibleColumns.insertBefore(selectedColumn, prev);
+            }
+        } else {
+            alert("Please select a column from the visible list.");
+        }
+    });
+
+    // Di chuyển cột xuống dưới
+    btnDown.addEventListener("click", function () {
+        if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+            const next = selectedColumn.nextElementSibling;
+            if (next) {
+                visibleColumns.insertBefore(next, selectedColumn);
+            }
+        } else {
+            alert("Please select a column from the visible list.");
+        }
+    });
+
+    // Lưu cấu hình
+   /** btnSave.addEventListener("click", function () {
+        const visibleColumnsData = Array.from(visibleColumns.children).map(li => li.dataset.column);
+        console.log("Saved columns:", visibleColumnsData);
+        alert("Settings saved successfully!");
+        // Chuyển về màn hình tìm kiếm
+        window.location.href = "search.html";
+    });*/
+
+    btnSave.addEventListener("click", function () {
+    // Lấy danh sách các cột hiển thị
+    const visibleColumnsData = Array.from(visibleColumns.children).map(li => li.dataset.column);
+
+    // Lưu vào localStorage
+    localStorage.setItem("visibleColumns", JSON.stringify(visibleColumnsData));
+
+    alert("Settings saved successfully!");
+    // Chuyển về màn hình tìm kiếm (T002)
+    window.location.href = "T002.html";
+});
+
+    // Hủy bỏ thay đổi
+    btnCancel.addEventListener("click", function () {
+        alert("Changes discarded.");
+        // Chuyển về màn hình tìm kiếm
+        window.location.href = "search.html";
+    });
+
+    // Thêm sự kiện chọn cột
+    hiddenColumns.querySelectorAll("li").forEach(li => li.addEventListener("click", selectColumn));
+    visibleColumns.querySelectorAll("li").forEach(li => li.addEventListener("click", selectColumn));
+});
+--------------------------
+csss----
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+}
+
+.container {
+    width: 80%;
+    margin: 20px auto;
+    background-color: #fff;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+}
+
+.lists {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.list {
+    width: 45%;
+    border: 1px solid #ccc;
+    padding: 10px;
+    background-color: #f9f9f9;
+}
+
+.list h2 {
+    margin-top: 0;
+    font-size: 18px;
+    color: #555;
+}
+
+.list ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.list ul li {
+    padding: 10px;
+    border: 1px solid #ddd;
+    margin-bottom: 5px;
+    background-color: #fff;
+    cursor: pointer;
+}
+
+.list ul li:hover {
+    background-color: #f0f0f0;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 10%;
+}
+
+.controls button {
+    margin: 5px 0;
+    padding: 10px;
+    width: 100%;
+    cursor: pointer;
+}
+
+.actions {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.actions button {
+    padding: 10px 20px;
+    margin: 0 10px;
+    cursor: pointer;
+}
+----------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Column Settings</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Column Settings</h1>
+        <div class="lists">
+            <!-- Danh sách cột ẩn -->
+            <div class="list hidden-columns">
+                <h2>Hidden Columns</h2>
+                <ul id="hiddenColumns">
+                    <li data-column="CheckBox">CheckBox</li>
+                    <li data-column="CustomerID">Customer ID</li>
+                    <li data-column="Email">Email</li>
+                </ul>
+            </div>
+
+            <!-- Các nút điều khiển -->
+            <div class="controls">
+                <button id="btnRight">Right &gt;</button>
+                <button id="btnLeft">&lt; Left</button>
+                <button id="btnUp">Up &uarr;</button>
+                <button id="btnDown">Down &darr;</button>
+            </div>
+
+            <!-- Danh sách cột hiển thị -->
+            <div class="list visible-columns">
+                <h2>Visible Columns</h2>
+                <ul id="visibleColumns">
+                    <li data-column="CustomerName">Customer Name</li>
+                    <li data-column="Sex">Sex</li>
+                    <li data-column="Birthday">Birthday</li>
+                    <li data-column="Address">Address</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Nút Save và Cancel -->
+        <div class="actions">
+            <button id="btnSave">Save</button>
+            <button id="btnCancel">Cancel</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+-----------------
+T002.jsp
+---------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Customer - T002</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Search Customer</h1>
+        <!-- Các trường tìm kiếm -->
+        <div class="search-fields">
+            <input type="text" id="customerId" placeholder="Customer ID">
+            <input type="text" id="customerName" placeholder="Customer Name">
+            <input type="text" id="birthDay" placeholder="Birthday">
+            <button onclick="searchCustomer()">Search</button>
+        </div>
+
+        <!-- Bảng kết quả tìm kiếm -->
+        <table id="resultTable">
+            <thead>
+                <tr id="tableHeader"></tr>
+            </thead>
+            <tbody>
+                <!-- Dữ liệu sẽ được thêm vào đây -->
+            </tbody>
+        </table>
+    </div>
+
+    <script src="T002.js"></script>
+</body>
+</html>
+-----js0-----
+document.addEventListener("DOMContentLoaded", function () {
+    // Lấy danh sách cột hiển thị từ localStorage
+    const visibleColumns = JSON.parse(localStorage.getItem("visibleColumns")) || [
+        "CustomerName", "Sex", "Birthday", "Address"
+    ];
+
+    // Hiển thị các cột trong bảng
+    const tableHeader = document.getElementById("tableHeader");
+    visibleColumns.forEach(column => {
+        const th = document.createElement("th");
+        th.textContent = column.replace(/([A-Z])/g, " $1").trim(); // Format tên cột (ví dụ: CustomerName -> Customer Name)
+        tableHeader.appendChild(th);
+    });
+
+    // Giả lập dữ liệu tìm kiếm
+    const sampleData = [
+        { CustomerName: "Nguyen Van A", Sex: "Male", Birthday: "1990/01/01", Address: "Ha Noi" },
+        { CustomerName: "Tran Thi B", Sex: "Female", Birthday: "1995/05/05", Address: "Ho Chi Minh" }
+    ];
+
+    // Hiển thị dữ liệu trong bảng
+    const tableBody = document.querySelector("#resultTable tbody");
+    sampleData.forEach(row => {
+        const tr = document.createElement("tr");
+        visibleColumns.forEach(column => {
+            const td = document.createElement("td");
+            td.textContent = row[column] || "-"; // Nếu không có dữ liệu, hiển thị "-"
+            tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+    });
+});
+
+// Hàm tìm kiếm khách hàng (giả lập)
+function searchCustomer() {
+    alert("Searching customer...");
+}
+--------------------------------------
+----------------------------------------
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Column Settings - T004</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Column Settings</h1>
+        <div class="lists">
+            <!-- Danh sách cột ẩn -->
+            <div class="list hidden-columns">
+                <h2>Hidden Columns</h2>
+                <ul id="hiddenColumns">
+                    <li data-column="CheckBox">CheckBox</li>
+                    <li data-column="CustomerID">Customer ID</li>
+                    <li data-column="Email">Email</li>
+                </ul>
+            </div>
+
+            <!-- Các nút điều khiển -->
+            <div class="controls">
+                <button id="btnRight">Right &gt;</button>
+                <button id="btnLeft">&lt; Left</button>
+                <button id="btnUp">Up &uarr;</button>
+                <button id="btnDown">Down &darr;</button>
+            </div>
+
+            <!-- Danh sách cột hiển thị -->
+            <div class="list visible-columns">
+                <h2>Visible Columns</h2>
+                <ul id="visibleColumns">
+                    <li data-column="CustomerName">Customer Name</li>
+                    <li data-column="Sex">Sex</li>
+                    <li data-column="Birthday">Birthday</li>
+                    <li data-column="Address">Address</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Nút Save và Cancel -->
+        <div class="actions">
+            <button id="btnSave">Save</button>
+            <button id="btnCancel">Cancel</button>
+        </div>
+    </div>
+
+    <script src="T004.js"></script>
+</body>
+</html>
+------------
+document.addEventListener("DOMContentLoaded", function () {
+    const hiddenColumns = document.getElementById("hiddenColumns");
+    const visibleColumns = document.getElementById("visibleColumns");
+    const btnRight = document.getElementById("btnRight");
+    const btnLeft = document.getElementById("btnLeft");
+    const btnUp = document.getElementById("btnUp");
+    const btnDown = document.getElementById("btnDown");
+    const btnSave = document.getElementById("btnSave");
+    const btnCancel = document.getElementById("btnCancel");
+
+    let selectedColumn = null;
+
+    // Chọn cột
+    function selectColumn(event) {
+        if (selectedColumn) {
+            selectedColumn.classList.remove("selected");
+        }
+        selectedColumn = event.target;
+        selectedColumn.classList.add("selected");
+    }
+
+    // Di chuyển cột sang phải (ẩn -> hiển thị)
+    btnRight.addEventListener("click", function () {
+        if (selectedColumn && selectedColumn.parentElement === hiddenColumns) {
+            visibleColumns.appendChild(selectedColumn);
+            selectedColumn = null;
+        } else {
+            alert("Please select a column from the hidden list.");
+        }
+    });
+
+    // Di chuyển cột sang trái (hiển thị -> ẩn)
+    btnLeft.addEventListener("click", function () {
+        if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+            if (selectedColumn.dataset.column === "CheckBox" || selectedColumn.dataset.column === "CustomerID") {
+                alert(`[${selectedColumn.textContent}] cannot be removed!`);
+            } else {
+                hiddenColumns.appendChild(selectedColumn);
+                selectedColumn = null;
+            }
+        } else {
+            alert("Please select a column from the visible list.");
+        }
+    });
+
+    // Di chuyển cột lên trên
+    btnUp.addEventListener("click", function () {
+        if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+            const prev = selectedColumn.previousElementSibling;
+            if (prev) {
+                visibleColumns.insertBefore(selectedColumn, prev);
+            }
+        } else {
+            alert("Please select a column from the visible list.");
+        }
+    });
+
+    // Di chuyển cột xuống dưới
+    btnDown.addEventListener("click", function () {
+        if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+            const next = selectedColumn.nextElementSibling;
+            if (next) {
+                visibleColumns.insertBefore(next, selectedColumn);
+            }
+        } else {
+            alert("Please select a column from the visible list.");
+        }
+    });
+
+    // Lưu cấu hình
+    btnSave.addEventListener("click", function () {
+        const visibleColumnsData = Array.from(visibleColumns.children).map(li => li.dataset.column);
+        localStorage.setItem("visibleColumns", JSON.stringify(visibleColumnsData));
+        alert("Settings saved successfully!");
+        window.location.href = "T002.html"; // Chuyển về màn hình T002
+    });
+
+    // Hủy bỏ thay đổi
+    btnCancel.addEventListener("click", function () {
+        alert("Changes discarded.");
+        window.location.href = "T002.html"; // Chuyển về màn hình T002
+    });
+
+    // Thêm sự kiện chọn cột
+    hiddenColumns.querySelectorAll("li").forEach(li => li.addEventListener("click", selectColumn));
+    visibleColumns.querySelectorAll("li").forEach(li => li.addEventListener("click", selectColumn));
+});
+
+-----------------
+T002.jsp
+----
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Customer - T002</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Search Customer</h1>
+        <!-- Các trường tìm kiếm -->
+        <div class="search-fields">
+            <input type="text" id="customerId" placeholder="Customer ID">
+            <input type="text" id="customerName" placeholder="Customer Name">
+            <input type="text" id="birthDay" placeholder="Birthday">
+            <button onclick="searchCustomer()">Search</button>
+        </div>
+
+        <!-- Bảng kết quả tìm kiếm -->
+        <table id="resultTable">
+            <thead>
+                <tr id="tableHeader"></tr>
+            </thead>
+            <tbody>
+                <!-- Dữ liệu sẽ được thêm vào đây -->
+            </tbody>
+        </table>
+    </div>
+
+    <script src="T002.js"></script>
+</body>
+</html>
+
+document.addEventListener("DOMContentLoaded", function () {
+    // Lấy danh sách các cột hiển thị từ localStorage
+    const visibleColumns = JSON.parse(localStorage.getItem("visibleColumns")) || [
+        "CustomerName", "Sex", "Birthday", "Address"
+    ];
+
+    // Hiển thị các cột trong bảng
+    const tableHeader = document.getElementById("tableHeader");
+    visibleColumns.forEach(column => {
+        const th = document.createElement("th");
+        th.textContent = column.replace(/([A-Z])/g, " $1").trim(); // Format tên cột (ví dụ: CustomerName -> Customer Name)
+        tableHeader.appendChild(th);
+    });
+
+    // Giả lập dữ liệu tìm kiếm
+    const sampleData = [
+        { CustomerName: "Nguyen Van A", Sex: "Male", Birthday: "1990/01/01", Address: "Ha Noi" },
+        { CustomerName: "Tran Thi B", Sex: "Female", Birthday: "1995/05/05", Address: "Ho Chi Minh" }
+    ];
+
+    // Hiển thị dữ liệu trong bảng
+    const tableBody = document.querySelector("#resultTable tbody");
+    sampleData.forEach(row => {
+        const tr = document.createElement("tr");
+        visibleColumns.forEach(column => {
+            const td = document.createElement("td");
+            td.textContent = row[column] || "-"; // Nếu không có dữ liệu, hiển thị "-"
+            tr.appendChild(td);
+        });
+        tableBody.appendChild(tr);
+    });
+});
+
+// Hàm tìm kiếm khách hàng (giả lập)
+function searchCustomer() {
+    alert("Searching customer...");
+}
