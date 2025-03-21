@@ -1,0 +1,311 @@
+<%@ taglib uri="/WEB-INF/struts-html.tld" prefix="html" %>
+<%@ taglib uri="/WEB-INF/struts-bean.tld" prefix="bean" %>
+<%@ taglib uri="/WEB-INF/struts-logic.tld" prefix="logic" %>
+
+<html>
+<head>
+    <title>Setting Header Customer List</title>
+    <style>
+        body { background-color: #BFEFFF; }
+        .container { width: 80%; margin: auto; text-align: center; }
+        .box { display: inline-block; width: 250px; height: 250px; border: 1px solid black; background: white; overflow: auto; }
+        .button-group { margin: 10px; }
+        .disabled { opacity: 0.5; pointer-events: none; }
+    </style>
+    <script>
+        function toggleButtons() {
+            document.getElementById("moveRight").disabled = document.querySelectorAll("input[name='selectedHiddenHeaders']:checked").length === 0;
+            document.getElementById("moveLeft").disabled = document.querySelectorAll("input[name='selectedVisibleHeaders']:checked").length === 0;
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div>
+            <bean:write name="user" property="username" /> | 
+            <html:link action="logout">Log Out</html:link>
+        </div>
+        <br/>
+        <div>
+            <div class="box">
+                <logic:iterate id="headerItem" name="hiddenHeaders">
+                    <html:checkbox property="selectedHiddenHeaders" value="<bean:write name='headerItem'/>" onclick="toggleButtons()" />
+                    <bean:write name="headerItem" /><br/>
+                </logic:iterate>
+            </div>
+            <div class="button-group">
+                <html:submit property="moveRight" styleId="moveRight" class="disabled">&rarr;</html:submit>
+                <html:submit property="moveLeft" styleId="moveLeft" class="disabled">&larr;</html:submit>
+            </div>
+            <div class="box">
+                <logic:iterate id="headerItem" name="visibleHeaders">
+                    <html:checkbox property="selectedVisibleHeaders" value="<bean:write name='headerItem'/>" onclick="toggleButtons()" />
+                    <bean:write name="headerItem" /><br/>
+                </logic:iterate>
+            </div>
+        </div>
+        <div class="button-group">
+            <html:submit property="moveUp">&uarr;</html:submit>
+            <html:submit property="moveDown">&darr;</html:submit>
+        </div>
+        <div class="button-group">
+            <html:submit property="save">Save</html:submit>
+            <html:submit property="cancel">Cancel</html:submit>
+        </div>
+    </div>
+</body>
+</html>
+------------------------
+<table border="1">
+    <tr>
+        <logic:iterate id="column" name="T002Form" property="visibleColumns">
+            <th><bean:write name="column"/></th>
+        </logic:iterate>
+    </tr>
+    <logic:iterate id="customer" name="T002Form" property="customers">
+        <tr>
+            <logic:iterate id="column" name="T002Form" property="visibleColumns">
+                <td><bean:write name="customer" property="<%= column %>"/></td>
+            </logic:iterate>
+        </tr>
+    </logic:iterate>
+</table>
+
+----T005Form
+import org.apache.struts.action.ActionForm;
+import java.util.List;
+
+public class T005Form extends ActionForm {
+    private List<String> visibleColumns;
+    private List<String> hiddenColumns;
+    private List<String> selectedVisibleColumns;
+    private List<String> selectedHiddenColumns;
+
+    public List<String> getVisibleColumns() {
+        return visibleColumns;
+    }
+
+    public void setVisibleColumns(List<String> visibleColumns) {
+        this.visibleColumns = visibleColumns;
+    }
+
+    public List<String> getHiddenColumns() {
+        return hiddenColumns;
+    }
+
+    public void setHiddenColumns(List<String> hiddenColumns) {
+        this.hiddenColumns = hiddenColumns;
+    }
+
+    public List<String> getSelectedVisibleColumns() {
+        return selectedVisibleColumns;
+    }
+
+    public void setSelectedVisibleColumns(List<String> selectedVisibleColumns) {
+        this.selectedVisibleColumns = selectedVisibleColumns;
+    }
+
+    public List<String> getSelectedHiddenColumns() {
+        return selectedHiddenColumns;
+    }
+
+    public void setSelectedHiddenColumns(List<String> selectedHiddenColumns) {
+        this.selectedHiddenColumns = selectedHiddenColumns;
+    }
+}
+
+------t005Action
+import org.apache.struts.actions.DispatchAction;
+import org.apache.struts.action.*;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.*;
+
+public class T005Action extends DispatchAction {
+
+    private static final List<String> FIXED_COLUMNS = Arrays.asList("customerId", "checkbox");
+
+    public ActionForward init(ActionMapping mapping, ActionForm form,
+                              HttpServletRequest request, HttpServletResponse response) {
+        T005Form t005Form = (T005Form) form;
+
+        // Lấy dữ liệu từ session (danh sách cột hiện tại trên T002)
+        List<String> visibleColumns = (List<String>) request.getSession().getAttribute("visibleColumns");
+        List<String> hiddenColumns = (List<String>) request.getSession().getAttribute("hiddenColumns");
+
+        if (visibleColumns == null || hiddenColumns == null) {
+            visibleColumns = new ArrayList<>(Arrays.asList("customerId", "customerName", "email"));
+            hiddenColumns = new ArrayList<>(Arrays.asList("sex", "birthDay", "address"));
+        }
+
+        t005Form.setVisibleColumns(new ArrayList<>(visibleColumns));
+        t005Form.setHiddenColumns(new ArrayList<>(hiddenColumns));
+
+        return mapping.findForward("success");
+    }
+
+    public ActionForward moveRight(ActionMapping mapping, ActionForm form,
+                                   HttpServletRequest request, HttpServletResponse response) {
+        T005Form t005Form = (T005Form) form;
+        List<String> hiddenColumns = t005Form.getHiddenColumns();
+        List<String> visibleColumns = t005Form.getVisibleColumns();
+        List<String> selectedHiddenColumns = t005Form.getSelectedHiddenColumns();
+
+        if (selectedHiddenColumns == null || selectedHiddenColumns.isEmpty()) {
+            request.setAttribute("message", "Chưa chọn cột để hiển thị.");
+            return mapping.findForward("success");
+        }
+
+        for (String column : selectedHiddenColumns) {
+            if (hiddenColumns.contains(column)) {
+                hiddenColumns.remove(column);
+                visibleColumns.add(column);
+            }
+        }
+
+        return mapping.findForward("success");
+    }
+
+    public ActionForward moveLeft(ActionMapping mapping, ActionForm form,
+                                  HttpServletRequest request, HttpServletResponse response) {
+        T005Form t005Form = (T005Form) form;
+        List<String> hiddenColumns = t005Form.getHiddenColumns();
+        List<String> visibleColumns = t005Form.getVisibleColumns();
+        List<String> selectedVisibleColumns = t005Form.getSelectedVisibleColumns();
+
+        if (selectedVisibleColumns == null || selectedVisibleColumns.isEmpty()) {
+            request.setAttribute("message", "Chưa chọn cột để ẩn.");
+            return mapping.findForward("success");
+        }
+
+        for (String column : selectedVisibleColumns) {
+            if (FIXED_COLUMNS.contains(column)) {
+                request.setAttribute("message", column + " không được ẩn.");
+                return mapping.findForward("success");
+            }
+            if (visibleColumns.contains(column)) {
+                visibleColumns.remove(column);
+                hiddenColumns.add(column);
+            }
+        }
+
+        return mapping.findForward("success");
+    }
+
+    public ActionForward save(ActionMapping mapping, ActionForm form,
+                          HttpServletRequest request, HttpServletResponse response) {
+    T005Form t005Form = (T005Form) form;
+
+    // Cập nhật session với danh sách cột đã cấu hình
+    request.getSession().setAttribute("visibleColumns", t005Form.getVisibleColumns());
+    request.getSession().setAttribute("hiddenColumns", t005Form.getHiddenColumns());
+
+    return mapping.findForward("backToT002");
+}
+
+
+    public ActionForward cancel(ActionMapping mapping, ActionForm form,
+                                HttpServletRequest request, HttpServletResponse response) {
+        return mapping.findForward("backToT002");
+    }
+}
+
+----jsp T005
+<%@ taglib uri="/WEB-INF/struts-html.tld" prefix="html" %>
+<%@ taglib uri="/WEB-INF/struts-bean.tld" prefix="bean" %>
+<%@ taglib uri="/WEB-INF/struts-logic.tld" prefix="logic" %>
+
+<html>
+<head>
+    <title>Thiết lập hiển thị</title>
+    <script type="text/javascript">
+        function validateSelection(action) {
+            var checkboxes = document.getElementsByName(action === 'moveRight' ? 'selectedHiddenColumns' : 'selectedVisibleColumns');
+            var selected = Array.from(checkboxes).some(cb => cb.checked);
+            if (!selected) {
+                alert("Chưa chọn cột để di chuyển!");
+                return false;
+            }
+            return true;
+        }
+    </script>
+</head>
+<body>
+    <h2>Thiết lập hiển thị</h2>
+    <html:form action="/T005Action">
+        <table>
+            <tr>
+                <td>Ẩn</td>
+                <td></td>
+                <td>Hiển thị</td>
+            </tr>
+            <tr>
+                <td>
+                    <logic:iterate id="column" name="T005Form" property="hiddenColumns">
+                        <html:checkbox property="selectedHiddenColumns" value="<bean:write name='column'/>" />
+                        <bean:write name="column"/><br/>
+                    </logic:iterate>
+                </td>
+                <td>
+                    <html:submit property="moveRight" onclick="return validateSelection('moveRight')">&rarr;</html:submit>
+                    <html:submit property="moveLeft" onclick="return validateSelection('moveLeft')">&larr;</html:submit>
+                </td>
+                <td>
+                    <logic:iterate id="column" name="T005Form" property="visibleColumns">
+                        <html:checkbox property="selectedVisibleColumns" value="<bean:write name='column'/>" />
+                        <bean:write name="column"/><br/>
+                    </logic:iterate>
+                </td>
+            </tr>
+        </table>
+        <html:submit property="save">Lưu</html:submit>
+        <html:submit property="cancel">Hủy</html:submit>
+    </html:form>
+</body>
+</html>
+-----------------
+action t002
+public ActionForward init(ActionMapping mapping, ActionForm form,
+                          HttpServletRequest request, HttpServletResponse response) {
+    T002Form t002Form = (T002Form) form;
+
+    // Lấy danh sách cột từ session nếu có, nếu không thì dùng mặc định
+    List<String> visibleColumns = (List<String>) request.getSession().getAttribute("visibleColumns");
+    if (visibleColumns == null) {
+        visibleColumns = new ArrayList<>(Arrays.asList("customerId", "customerName", "email"));
+    }
+    t002Form.setVisibleColumns(visibleColumns);
+
+    return mapping.findForward("success");
+}
+
+----jsp t002
+<html:form action="/T005Action">
+    <html:submit property="init">Cấu hình hiển thị</html:submit>
+</html:form>
+
+-----struts-cònig
+<action path="/T002Action" type="com.example.T002Action" parameter="method">
+    <forward name="success" path="/WEB-INF/jsp/T002.jsp"/>
+</action>
+
+<action path="/T005Action" type="com.example.T005Action" parameter="method">
+    <forward name="success" path="/WEB-INF/jsp/T005.jsp"/>
+    <forward name="backToT002" path="/T002Action.do?method=init" redirect="true"/>
+</action>
+
+-------------jsp cột T002|
+<table border="1">
+    <tr>
+        <logic:iterate id="column" name="T002Form" property="visibleColumns">
+            <th><bean:write name="column"/></th>
+        </logic:iterate>
+    </tr>
+    <logic:iterate id="customer" name="T002Form" property="customers">
+        <tr>
+            <logic:iterate id="column" name="T002Form" property="visibleColumns">
+                <td><bean:write name="customer" property="<%= column %>"/></td>
+            </logic:iterate>
+        </tr>
+    </logic:iterate>
+</table>
