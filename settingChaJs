@@ -1,0 +1,191 @@
+<html:form action="/T005Action">
+    <table>
+        <tr>
+            <!-- Danh sách cột chưa hiển thị -->
+            <td>
+                <h3>Các cột chưa hiển thị</h3>
+                <select id="hiddenColumns" multiple size="5">
+                    <c:forEach var="col" items="${sessionScope.hiddenColumns}">
+                        <option value="${col}">${col}</option>
+                    </c:forEach>
+                </select>
+            </td>
+
+            <!-- Các nút thao tác -->
+            <td>
+                <button type="button" id="btnRight">→</button><br>
+                <button type="button" id="btnLeft">←</button><br>
+                <button type="button" id="btnUp">↑</button><br>
+                <button type="button" id="btnDown">↓</button>
+            </td>
+
+            <!-- Danh sách cột đang hiển thị -->
+            <td>
+                <h3>Các cột đang hiển thị</h3>
+                <select id="visibleColumns" multiple size="5">
+                    <c:forEach var="col" items="${sessionScope.visibleColumns}">
+                        <option value="${col}">${col}</option>
+                    </c:forEach>
+                </select>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Input hidden để lưu danh sách cột khi submit -->
+    <input type="hidden" id="hiddenColumnsInput" name="hiddenColumns">
+    <input type="hidden" id="visibleColumnsInput" name="visibleColumns">
+
+    <html:submit property="save" onclick="updateHiddenFields()">Lưu</html:submit>
+    <html:submit property="cancel">Hủy</html:submit>
+</html:form>
+
+<script src="scripts/t005.js"></script>
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    const btnRight = document.getElementById("btnRight");
+    const btnLeft = document.getElementById("btnLeft");
+    const btnUp = document.getElementById("btnUp");
+    const btnDown = document.getElementById("btnDown");
+
+    const hiddenColumns = document.getElementById("hiddenColumns");
+    const visibleColumns = document.getElementById("visibleColumns");
+
+    // Cập nhật trạng thái nút
+    function updateButtonStates() {
+        btnRight.disabled = hiddenColumns.options.length === 0;
+        btnLeft.disabled = visibleColumns.options.length === 0;
+        btnUp.disabled = visibleColumns.selectedIndex <= 0;
+        btnDown.disabled = visibleColumns.selectedIndex === -1 || visibleColumns.selectedIndex >= visibleColumns.options.length - 1;
+    }
+
+    // Chuyển cột từ hiddenColumns -> visibleColumns
+    btnRight.addEventListener("click", function () {
+        moveOptions(hiddenColumns, visibleColumns);
+    });
+
+    // Chuyển cột từ visibleColumns -> hiddenColumns
+    btnLeft.addEventListener("click", function () {
+        moveOptions(visibleColumns, hiddenColumns, ["Mã khách hàng"]);
+    });
+
+    // Di chuyển cột lên
+    btnUp.addEventListener("click", function () {
+        moveOptionUp(visibleColumns);
+    });
+
+    // Di chuyển cột xuống
+    btnDown.addEventListener("click", function () {
+        moveOptionDown(visibleColumns);
+    });
+
+    // Chuyển option giữa 2 danh sách
+    function moveOptions(fromSelect, toSelect, lockedItems = []) {
+        let selectedOptions = Array.from(fromSelect.selectedOptions);
+        selectedOptions.forEach(option => {
+            if (!lockedItems.includes(option.value)) {
+                toSelect.appendChild(option);
+            } else {
+                alert(`${option.value} không thể ẩn!`);
+            }
+        });
+        updateButtonStates();
+    }
+
+    // Di chuyển option lên
+    function moveOptionUp(select) {
+        let selectedIndex = select.selectedIndex;
+        if (selectedIndex > 0) {
+            let options = select.options;
+            let selectedOption = options[selectedIndex];
+            select.removeChild(selectedOption);
+            select.insertBefore(selectedOption, options[selectedIndex - 1]);
+            select.selectedIndex = selectedIndex - 1;
+        }
+    }
+
+    // Di chuyển option xuống
+    function moveOptionDown(select) {
+        let selectedIndex = select.selectedIndex;
+        if (selectedIndex < select.options.length - 1) {
+            let options = select.options;
+            let selectedOption = options[selectedIndex];
+            select.removeChild(selectedOption);
+            select.insertBefore(selectedOption, options[selectedIndex + 1].nextSibling);
+            select.selectedIndex = selectedIndex + 1;
+        }
+    }
+
+    // Cập nhật input hidden trước khi submit
+    window.updateHiddenFields = function () {
+        document.getElementById("hiddenColumnsInput").value = getOptions(hiddenColumns);
+        document.getElementById("visibleColumnsInput").value = getOptions(visibleColumns);
+    };
+
+    // Lấy danh sách giá trị từ select
+    function getOptions(select) {
+        return Array.from(select.options).map(option => option.value).join(",");
+    }
+
+    updateButtonStates();
+});
+
+
+public class T005Action extends Action {
+    public ActionForward save(ActionMapping mapping, ActionForm form,
+                              HttpServletRequest request, HttpServletResponse response) {
+        // Lấy danh sách cột từ request
+        String hiddenColumnsStr = request.getParameter("hiddenColumns");
+        String visibleColumnsStr = request.getParameter("visibleColumns");
+
+        // Lưu vào session để màn T002 sử dụng
+        request.getSession().setAttribute("hiddenColumns", hiddenColumnsStr.split(","));
+        request.getSession().setAttribute("visibleColumns", visibleColumnsStr.split(","));
+
+        return mapping.findForward("backToT002");
+    }
+
+    public ActionForward cancel(ActionMapping mapping, ActionForm form,
+                                HttpServletRequest request, HttpServletResponse response) {
+        return mapping.findForward("backToT002");
+    }
+}
+
+
+<action path="/T005Action"
+        type="fjs.cs.T005Action"
+        scope="request"
+        validate="false"
+        input="/WEB-INF/jsp/T005.jsp">
+    
+    <!-- Xử lý khi nhấn Lưu -->
+    <forward name="backToT002" path="/T002Action.do" redirect="true"/>
+
+</action>
+
+--------T002Actionm
+@Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession();
+
+        // Lấy danh sách cột hiển thị từ request hoặc database
+        List<String> visibleColumns = getVisibleColumnsFromDB();  // Giả lập lấy từ DB
+        List<String> hiddenColumns = getHiddenColumnsFromDB();  // Giả lập lấy từ DB
+
+        // Lưu danh sách vào session để sử dụng ở màn T005
+        session.setAttribute("visibleColumns", visibleColumns);
+        session.setAttribute("hiddenColumns", hiddenColumns);
+
+        return mapping.findForward("gotoT005");
+    }
+
+    private List<String> getVisibleColumnsFromDB() {
+        return List.of("customerId", "customerName", "email");  // Dữ liệu giả lập
+    }
+
+    private List<String> getHiddenColumnsFromDB() {
+        return List.of("sex", "birthDay", "address");  // Dữ liệu giả lập
+    }
+
+
