@@ -1,3 +1,61 @@
+public class T002Action extends DispatchAction {
+
+    public ActionForward export(ActionMapping mapping, ActionForm form,
+                                HttpServletRequest request, HttpServletResponse response) throws Exception {
+        // Lấy điều kiện tìm kiếm từ request
+        String customerName = request.getParameter("customerName");
+        String email = request.getParameter("email");
+
+        // Gọi service để lấy dữ liệu
+        List<CustomerDto> customers = customerService.getCustomers(customerName, email);
+
+        // Xuất file CSV
+        response.setContentType("text/csv");
+        response.setHeader("Content-Disposition", "attachment; filename=\"customers.csv\"");
+
+        PrintWriter writer = response.getWriter();
+        writer.println("\"Customer ID\",\"Customer Name\",\"Email\"");
+
+        for (CustomerDto customer : customers) {
+            writer.printf("\"%d\",\"%s\",\"%s\"%n",
+                    customer.getCustomerID(),
+                    customer.getCustomerName(),
+                    customer.getEmail());
+        }
+        
+        writer.flush();
+        writer.close();
+        
+        return null; // Không cần chuyển trang
+    }
+}
+
+
+
+<html:form action="T002.do" method="post">
+    <!-- Trường ẩn để lưu action -->
+    <html:hidden property="action" value=""/>
+
+    <!-- Các input tìm kiếm -->
+    <input type="text" name="customerName" value="<%= request.getParameter("customerName") != null ? request.getParameter("customerName") : "" %>">
+    <input type="text" name="email" value="<%= request.getParameter("email") != null ? request.getParameter("email") : "" %>">
+
+    <!-- Nút Export CSV -->
+    <html:button property="export" onclick="exportCSV()">Export CSV</html:button>
+</html:form>
+
+
+
+
+<script>
+    function exportCSV() {
+        document.forms[0].action.value = "export";  // Gán action là export
+        document.forms[0].submit();  // Gửi form
+    }
+</script>
+
+
+
 public ActionForward exportCSV(ActionMapping mapping, ActionForm form, HttpServletRequest request, HttpServletResponse response) throws Exception {
     // Lấy thông tin tìm kiếm từ request
     String customerName = request.getParameter("customerName");
