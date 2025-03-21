@@ -1,0 +1,501 @@
+-----T002-------
+--<%
+    // Lấy danh sách các cột hiển thị từ session
+    String[] visibleColumns = (String[]) session.getAttribute("visibleColumns");
+    if (visibleColumns == null) {
+        // Nếu không có cấu hình, hiển thị mặc định
+        visibleColumns = new String[]{"USERID", "Name", "Sex", "Birthday", "Address"};
+    }
+%>
+
+<!-- Hiển thị tiêu đề và nội dung theo cấu hình -->
+<table>
+    <thead>
+        <tr>
+            <th><html:checkbox property="selectAll" /></th>
+            <% for (String column : visibleColumns) { %>
+            <th><%= column %></th>
+            <% } %>
+        </tr>
+    </thead>
+    <tbody>
+        <logic:iterate name="customers" id="customer">
+            <tr>
+                <td><html:checkbox property="selectedIds" value="<%= customer.getId() %>" /></td>
+                <% for (String column : visibleColumns) {
+                    String value = "";
+                    switch (column) {
+                        case "USERID": value = customer.getId(); break;
+                        case "Name": value = customer.getName(); break;
+                        case "Sex": value = customer.getSex().equals("1") ? "Male" : "Female"; break;
+                        case "Birthday": value = customer.getBirthday(); break;
+                        case "Address": value = customer.getAddress(); break;
+                        default: value = "-";
+                    }
+                %>
+                <td><%= value %></td>
+                <% } %>
+            </tr>
+        </logic:iterate>
+    </tbody>
+</table>
+------------T005---------------
+<html:button property="settingHeader" onclick="location.href='T005'">Setting Header</html:button>
+-----
+<%@ taglib uri="http://struts.apache.org/tags-bean" prefix="bean" %>
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+<%@ taglib uri="http://struts.apache.org/tags-logic" prefix="logic" %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Setting Header - T005</title>
+    <style>
+        /* CSS tương tự như T004 */
+        .lists { display: flex; justify-content: space-between; }
+        .list { width: 45%; border: 1px solid #ccc; padding: 10px; }
+        .controls { display: flex; flex-direction: column; justify-content: center; }
+        .controls button { margin: 5px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Setting Header</h1>
+    <div class="lists">
+        <!-- Danh sách cột ẩn -->
+        <div class="list hidden-columns">
+            <h2>Hidden Columns</h2>
+            <ul id="hiddenColumns">
+                <logic:iterate name="hiddenColumns" id="column">
+                    <li data-column="<%= column %>"><%= column %></li>
+                </logic:iterate>
+            </ul>
+        </div>
+
+        <!-- Các nút điều khiển -->
+        <div class="controls">
+            <button id="btnRight">Right &gt;</button>
+            <button id="btnLeft">&lt; Left</button>
+            <button id="btnUp">Up &uarr;</button>
+            <button id="btnDown">Down &darr;</button>
+        </div>
+
+        <!-- Danh sách cột hiển thị -->
+        <div class="list visible-columns">
+            <h2>Visible Columns</h2>
+            <ul id="visibleColumns">
+                <logic:iterate name="visibleColumns" id="column">
+                    <li data-column="<%= column %>"><%= column %></li>
+                </logic:iterate>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Nút Save và Cancel -->
+    <div class="actions">
+        <html:button property="save" onclick="saveSettings()">Save</html:button>
+        <html:button property="cancel" onclick="location.href='T002'">Cancel</html:button>
+    </div>
+
+    <script>
+        // JavaScript để xử lý di chuyển cột
+        document.addEventListener("DOMContentLoaded", function () {
+            const hiddenColumns = document.getElementById("hiddenColumns");
+            const visibleColumns = document.getElementById("visibleColumns");
+            const btnRight = document.getElementById("btnRight");
+            const btnLeft = document.getElementById("btnLeft");
+            const btnUp = document.getElementById("btnUp");
+            const btnDown = document.getElementById("btnDown");
+
+            let selectedColumn = null;
+
+            // Chọn cột
+            function selectColumn(event) {
+                if (selectedColumn) {
+                    selectedColumn.classList.remove("selected");
+                }
+                selectedColumn = event.target;
+                selectedColumn.classList.add("selected");
+            }
+
+            // Di chuyển cột sang phải (ẩn -> hiển thị)
+            btnRight.addEventListener("click", function () {
+                if (selectedColumn && selectedColumn.parentElement === hiddenColumns) {
+                    visibleColumns.appendChild(selectedColumn);
+                    selectedColumn = null;
+                } else {
+                    alert("Please select a column from the hidden list.");
+                }
+            });
+
+            // Di chuyển cột sang trái (hiển thị -> ẩn)
+            btnLeft.addEventListener("click", function () {
+                if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+                    hiddenColumns.appendChild(selectedColumn);
+                    selectedColumn = null;
+                } else {
+                    alert("Please select a column from the visible list.");
+                }
+            });
+
+            // Di chuyển cột lên trên
+            btnUp.addEventListener("click", function () {
+                if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+                    const prev = selectedColumn.previousElementSibling;
+                    if (prev) {
+                        visibleColumns.insertBefore(selectedColumn, prev);
+                    }
+                } else {
+                    alert("Please select a column from the visible list.");
+                }
+            });
+
+            // Di chuyển cột xuống dưới
+            btnDown.addEventListener("click", function () {
+                if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+                    const next = selectedColumn.nextElementSibling;
+                    if (next) {
+                        visibleColumns.insertBefore(next, selectedColumn);
+                    }
+                } else {
+                    alert("Please select a column from the visible list.");
+                }
+            });
+        });
+
+        // Lưu cấu hình
+        function saveSettings() {
+            const visibleColumns = Array.from(document.getElementById("visibleColumns").children)
+                .map(li => li.dataset.column);
+
+            // Gửi dữ liệu về server để lưu
+            fetch("T005?action=save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ visibleColumns })
+            }).then(() => {
+                alert("Settings saved successfully!");
+                window.location.href = "T002"; // Quay lại T002
+            });
+        }
+    </script>
+</body>
+</html>
+
+
+public class T005Action extends Action {
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) throws Exception {
+        T005Form t005Form = (T005Form) form;
+
+        if ("save".equals(request.getParameter("action"))) {
+            // Lấy danh sách các cột hiển thị từ request
+            String[] visibleColumns = t005Form.getVisibleColumns();
+
+            // Lưu vào session
+            HttpSession session = request.getSession();
+            session.setAttribute("visibleColumns", visibleColumns);
+
+            // Chuyển hướng về T002
+            return mapping.findForward("success");
+        }
+
+        // Hiển thị màn hình T005 với cấu hình hiện tại
+        return mapping.findForward("display");
+    }
+}
+
+<%
+    // Lấy danh sách các cột hiển thị từ session
+    String[] visibleColumns = (String[]) session.getAttribute("visibleColumns");
+    if (visibleColumns == null) {
+        // Nếu không có cấu hình, hiển thị mặc định
+        visibleColumns = new String[]{"USERID", "Name", "Sex", "Birthday", "Address"};
+    }
+%>
+
+<!-- Hiển thị tiêu đề và nội dung theo cấu hình -->
+<table>
+    <thead>
+        <tr>
+            <th><html:checkbox property="selectAll" /></th>
+            <% for (String column : visibleColumns) { %>
+            <th><%= column %></th>
+            <% } %>
+        </tr>
+    </thead>
+    <tbody>
+        <logic:iterate name="customers" id="customer">
+            <tr>
+                <td><html:checkbox property="selectedIds" value="<%= customer.getId() %>" /></td>
+                <% for (String column : visibleColumns) {
+                    String value = "";
+                    switch (column) {
+                        case "USERID": value = customer.getId(); break;
+                        case "Name": value = customer.getName(); break;
+                        case "Sex": value = customer.getSex().equals("1") ? "Male" : "Female"; break;
+                        case "Birthday": value = customer.getBirthday(); break;
+                        case "Address": value = customer.getAddress(); break;
+                        default: value = "-";
+                    }
+                %>
+                <td><%= value %></td>
+                <% } %>
+            </tr>
+        </logic:iterate>
+    </tbody>
+</table>
+------------------------
+Full
+---------------------
+package your.package;
+
+import org.apache.struts.action.ActionForm;
+
+public class T005Form extends ActionForm {
+    private String[] visibleColumns; // Danh sách các cột hiển thị
+
+    // Getter và Setter
+    public String[] getVisibleColumns() {
+        return visibleColumns;
+    }
+
+    public void setVisibleColumns(String[] visibleColumns) {
+        this.visibleColumns = visibleColumns;
+    }
+}
+
+package your.package;
+
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+public class T005Action extends Action {
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) throws Exception {
+        T005Form t005Form = (T005Form) form;
+
+        // Xử lý khi nhấn Save
+        if ("save".equals(request.getParameter("action"))) {
+            // Lấy danh sách các cột hiển thị từ form
+            String[] visibleColumns = t005Form.getVisibleColumns();
+
+            // Lưu vào session
+            HttpSession session = request.getSession();
+            session.setAttribute("visibleColumns", visibleColumns);
+
+            // Chuyển hướng về T002
+            return mapping.findForward("success");
+        }
+
+        // Hiển thị màn hình T005 với cấu hình hiện tại
+        HttpSession session = request.getSession();
+        String[] visibleColumns = (String[]) session.getAttribute("visibleColumns");
+
+        // Nếu không có cấu hình, hiển thị mặc định
+        if (visibleColumns == null) {
+            visibleColumns = new String[]{"USERID", "Name", "Sex", "Birthday", "Address"};
+        }
+
+        // Đặt dữ liệu vào request để hiển thị trên JSP
+        request.setAttribute("visibleColumns", visibleColumns);
+
+        // Danh sách các cột ẩn (có thể lấy từ database hoặc hardcode)
+        String[] hiddenColumns = new String[]{"CheckBox", "CustomerID", "Email"};
+        request.setAttribute("hiddenColumns", hiddenColumns);
+
+        return mapping.findForward("display");
+    }
+}
+
+<%@ taglib uri="http://struts.apache.org/tags-bean" prefix="bean" %>
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+<%@ taglib uri="http://struts.apache.org/tags-logic" prefix="logic" %>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Setting Header - T005</title>
+    <style>
+        .lists { display: flex; justify-content: space-between; }
+        .list { width: 45%; border: 1px solid #ccc; padding: 10px; }
+        .controls { display: flex; flex-direction: column; justify-content: center; }
+        .controls button { margin: 5px; padding: 10px; }
+        .selected { background-color: #dff0d8; }
+    </style>
+</head>
+<body>
+    <h1>Setting Header</h1>
+    <div class="lists">
+        <!-- Danh sách cột ẩn -->
+        <div class="list hidden-columns">
+            <h2>Hidden Columns</h2>
+            <ul id="hiddenColumns">
+                <logic:iterate name="hiddenColumns" id="column">
+                    <li data-column="<%= column %>"><%= column %></li>
+                </logic:iterate>
+            </ul>
+        </div>
+
+        <!-- Các nút điều khiển -->
+        <div class="controls">
+            <button id="btnRight">Right &gt;</button>
+            <button id="btnLeft">&lt; Left</button>
+            <button id="btnUp">Up &uarr;</button>
+            <button id="btnDown">Down &darr;</button>
+        </div>
+
+        <!-- Danh sách cột hiển thị -->
+        <div class="list visible-columns">
+            <h2>Visible Columns</h2>
+            <ul id="visibleColumns">
+                <logic:iterate name="visibleColumns" id="column">
+                    <li data-column="<%= column %>"><%= column %></li>
+                </logic:iterate>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Nút Save và Cancel -->
+    <div class="actions">
+        <html:button property="save" onclick="saveSettings()">Save</html:button>
+        <html:button property="cancel" onclick="location.href='T002'">Cancel</html:button>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const hiddenColumns = document.getElementById("hiddenColumns");
+            const visibleColumns = document.getElementById("visibleColumns");
+            const btnRight = document.getElementById("btnRight");
+            const btnLeft = document.getElementById("btnLeft");
+            const btnUp = document.getElementById("btnUp");
+            const btnDown = document.getElementById("btnDown");
+
+            let selectedColumn = null;
+
+            // Chọn cột
+            function selectColumn(event) {
+                if (selectedColumn) {
+                    selectedColumn.classList.remove("selected");
+                }
+                selectedColumn = event.target;
+                selectedColumn.classList.add("selected");
+            }
+
+            // Di chuyển cột sang phải (ẩn -> hiển thị)
+            btnRight.addEventListener("click", function () {
+                if (selectedColumn && selectedColumn.parentElement === hiddenColumns) {
+                    visibleColumns.appendChild(selectedColumn);
+                    selectedColumn = null;
+                } else {
+                    alert("Please select a column from the hidden list.");
+                }
+            });
+
+            // Di chuyển cột sang trái (hiển thị -> ẩn)
+            btnLeft.addEventListener("click", function () {
+                if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+                    hiddenColumns.appendChild(selectedColumn);
+                    selectedColumn = null;
+                } else {
+                    alert("Please select a column from the visible list.");
+                }
+            });
+
+            // Di chuyển cột lên trên
+            btnUp.addEventListener("click", function () {
+                if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+                    const prev = selectedColumn.previousElementSibling;
+                    if (prev) {
+                        visibleColumns.insertBefore(selectedColumn, prev);
+                    }
+                } else {
+                    alert("Please select a column from the visible list.");
+                }
+            });
+
+            // Di chuyển cột xuống dưới
+            btnDown.addEventListener("click", function () {
+                if (selectedColumn && selectedColumn.parentElement === visibleColumns) {
+                    const next = selectedColumn.nextElementSibling;
+                    if (next) {
+                        visibleColumns.insertBefore(next, selectedColumn);
+                    }
+                } else {
+                    alert("Please select a column from the visible list.");
+                }
+            });
+
+            // Thêm sự kiện chọn cột
+            hiddenColumns.querySelectorAll("li").forEach(li => li.addEventListener("click", selectColumn));
+            visibleColumns.querySelectorAll("li").forEach(li => li.addEventListener("click", selectColumn));
+        });
+
+        // Lưu cấu hình
+        function saveSettings() {
+            const visibleColumns = Array.from(document.getElementById("visibleColumns").children)
+                .map(li => li.dataset.column);
+
+            // Gửi dữ liệu về server để lưu
+            fetch("T005?action=save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ visibleColumns })
+            }).then(() => {
+                alert("Settings saved successfully!");
+                window.location.href = "T002"; // Quay lại T002
+            });
+        }
+    </script>
+</body>
+</html>
+
+-------
+<!-- Thêm nút Setting Header -->
+<html:button property="settingHeader" onclick="location.href='T005'">Setting Header</html:button>
+
+<!-- Hiển thị bảng theo cấu hình từ T005 -->
+<%
+    // Lấy danh sách các cột hiển thị từ session
+    String[] visibleColumns = (String[]) session.getAttribute("visibleColumns");
+    if (visibleColumns == null) {
+        // Nếu không có cấu hình, hiển thị mặc định
+        visibleColumns = new String[]{"USERID", "Name", "Sex", "Birthday", "Address"};
+    }
+%>
+
+<table>
+    <thead>
+        <tr>
+            <th><html:checkbox property="selectAll" /></th>
+            <% for (String column : visibleColumns) { %>
+            <th><%= column %></th>
+            <% } %>
+        </tr>
+    </thead>
+    <tbody>
+        <logic:iterate name="customers" id="customer">
+            <tr>
+                <td><html:checkbox property="selectedIds" value="<%= customer.getId() %>" /></td>
+                <% for (String column : visibleColumns) {
+                    String value = "";
+                    switch (column) {
+                        case "USERID": value = customer.getId(); break;
+                        case "Name": value = customer.getName(); break;
+                        case "Sex": value = customer.getSex().equals("1") ? "Male" : "Female"; break;
+                        case "Birthday": value = customer.getBirthday(); break;
+                        case "Address": value = customer.getAddress(); break;
+                        default: value = "-";
+                    }
+                %>
+                <td><%= value %></td>
+                <% } %>
+            </tr>
+        </logic:iterate>
+    </tbody>
+</table>
