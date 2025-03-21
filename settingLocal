@@ -281,3 +281,48 @@ html:submit[property="cancel"]:hover {
 input[type="hidden"] {
     display: none;
 }
+
+----Thêm
+<html:form action="/T005Action">
+    <table>
+        <tr>
+            <!-- Danh sách cột chưa hiển thị -->
+            <td>
+                <h3>Các cột chưa hiển thị</h3>
+                <select id="hiddenColumns" multiple size="5"></select>
+            </td>
+
+            <!-- Các nút thao tác -->
+            <td>
+                <button type="button" id="btnRight">→</button><br>
+                <button type="button" id="btnLeft">←</button><br>
+                <button type="button" id="btnUp">↑</button><br>
+                <button type="button" id="btnDown">↓</button>
+            </td>
+
+            <!-- Danh sách cột đang hiển thị -->
+            <td>
+                <h3>Các cột đang hiển thị</h3>
+                <select id="visibleColumns" multiple size="5"></select>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Input hidden để lưu danh sách cột khi submit -->
+    <input type="hidden" id="hiddenColumnsInput" name="hiddenColumns">
+    <input type="hidden" id="visibleColumnsInput" name="visibleColumns">
+
+    <html:submit property="save" onclick="updateHiddenFields()">Lưu</html:submit>
+    <html:submit property="cancel">Hủy</html:submit>
+</html:form>
+----function updateHiddenFields() {
+    // Lấy danh sách các cột từ select box
+    const hiddenColumns = Array.from(document.getElementById("hiddenColumns").options)
+        .map(option => option.value);
+    const visibleColumns = Array.from(document.getElementById("visibleColumns").options)
+        .map(option => option.value);
+
+    // Cập nhật giá trị cho input hidden
+    document.getElementById("hiddenColumnsInput").value = hiddenColumns.join(",");
+    document.getElementById("visibleColumnsInput").value = visibleColumns.join(",");
+}
