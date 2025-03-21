@@ -1,0 +1,117 @@
+public class T002Action extends DispatchAction {
+    private T002Service t002Service;
+
+    @Override
+    public void setServlet(ActionServlet servlet) {
+        super.setServlet(servlet);
+        ApplicationContext act = WebApplicationContextUtils
+            .getRequiredWebApplicationContext(servlet.getServletContext());
+        t002Service = (T002Service) act.getBean("t002Service");
+    }
+
+    /**
+     * Kiểm tra session có hợp lệ không.
+     */
+    private boolean checkSession(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        return session != null && session.getAttribute(Constains.USERNAME) != null;
+    }
+
+    /**
+     * Xử lý xóa mềm khách hàng.
+     */
+    public ActionForward deleteCustomers(ActionMapping mapping, ActionForm form,
+                                         HttpServletRequest request, HttpServletResponse response) throws Exception {
+        if (!checkSession(request)) {
+            return mapping.findForward(Constains.FAILURE);
+        }
+
+        ResponseData responseData = new ResponseData();
+        try {
+            StringBuilder sb = new StringBuilder();
+            BufferedReader reader = request.getReader();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+
+            String rawData = sb.toString().replace("[", "").replace("]", "").replace("\"", "");
+            List<Integer> userIds = Arrays.stream(rawData.split(","))
+                .map(s -> Integer.parseInt(s.trim()))
+                .collect(Collectors.toList());
+
+            if (!userIds.isEmpty()) {
+                t002Service.deleteCustomers(userIds);
+                responseData.setSuccess(true);
+            } else {
+                responseData.setSuccess(false);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            responseData.setSuccess(false);
+        }
+
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        PrintWriter out = response.getWriter();
+        out.println("{\"success\":" + responseData.isSuccess() + "}");
+        out.flush();
+
+        return null; // Vì đây là API trả JSON, không cần điều hướng
+    }
+
+    /**
+     * Tìm kiếm danh sách khách hàng theo điều kiện tìm kiếm.
+     */
+    public ActionForward searchCustomers(ActionMapping mapping, ActionForm form,
+                                         HttpServletRequest request, HttpServletResponse response) throws Exception {
+        if (!checkSession(request)) {
+            return mapping.findForward(Constains.FAILURE);
+        }
+
+        T002Bean bean = (T002Bean) form;
+        String customerName = bean.getTxtCustomerName();
+        String sex = bean.getCboSex();
+        String birthdayTo = bean.getTxtBirthdayTo();
+        String birthdayFrom = bean.getTxtBirthdayForm();
+        String pageParam = request.getParameter(Constains.PAGE);
+
+        int page = 1;
+        int itemsPerPage = 15;
+
+        // Lấy tổng số bản ghi phù hợp điều kiện tìm kiếm
+        int totalItems = (int) t002Service.getTotalRecords(customerName, sex, birthdayFrom, birthdayTo);
+        int totalPages = (int) Math.ceil(totalItems * 1.0 / itemsPerPage);
+
+        // Xử lý số trang hợp lệ
+        if (pageParam != null) {
+            try {
+                page = Integer.parseInt(pageParam);
+                if (page < 1) {
+                    page = 1;
+                }
+                if (page > totalPages && totalPages > 0) {
+                    page = totalPages;
+                }
+            } catch (NumberFormatException e) {
+                page = 1;
+            }
+        }
+
+        // Lấy danh sách khách hàng
+        List<CustomerDto> customers = t002Service.getCustomer(customerName, sex, birthdayFrom, birthdayTo,
+                (page - 1) * itemsPerPage, itemsPerPage);
+
+        // Đưa dữ liệu vào request
+        request.setAttribute(Constains.CUSTOMERS, customers);
+        request.setAttribute(Constains.CURRENT_PAGE, page);
+        request.setAttribute(Constains.TOTAL_PAGE, totalPages);
+
+        T002Dto t002 = new T002Dto(customerName, sex, birthdayFrom, birthdayTo);
+        request.setAttribute(Constains.SEARCH, t002);
+
+        return mapping.findForward(Constains.SUCCESS);
+    }
+}
+
+
