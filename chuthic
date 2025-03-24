@@ -1,0 +1,334 @@
+@Override
+public ActionForward execute(ActionMapping mapping, ActionForm form, HttpServletRequest request,
+    HttpServletResponse response) throws Exception {
+    // Ghi đè phương thức execute của Struts Action
+    // Chuyển hướng xử lý sang phương thức ImportFile
+    return ImportFile(mapping, form, request, response);
+}
+public ActionForward ImportFile(ActionMapping mapping, ActionForm form, HttpServletRequest request,
+    HttpServletResponse response) throws Exception {
+    System.out.println("import"); // In log debug (nên dùng logger thay System.out)
+    
+    // Kiểm tra session người dùng có hợp lệ không
+    if (!checkSession(request)) {
+        return mapping.findForward(Constains.FAILURE); // Trả về trang thất bại nếu chưa đăng nhập
+    }
+
+    // Lấy session hiện tại
+    HttpSession session = request.getSession();
+    // Lấy mã người dùng từ session (PSN_CD là ID của người thao tác)
+    Integer PSN_CD = (Integer) session.getAttribute(Constains.PSN_CD);
+
+    // Ép kiểu form Struts sang bean T004 (form upload file)
+    T004Bean t004form = (T004Bean) form;
+    // Lấy file từ form
+    FormFile file = t004form.getFile();
+
+    // Kiểm tra file có tồn tại và có dữ liệu không
+    if (file == null || file.getFileSize() == 0) {
+        request.setAttribute("error", "No file selected! Please choose a file."); // Thông báo lỗi
+        return mapping.findForward(Constains.SKCCESS); // Lỗi chính tả: SKCCESS → SUCCESS
+    }
+
+    // Debug: In thông tin file
+    System.out.println("action 1: " + file);
+    // Lấy InputStream từ file upload
+    InputStream inputStream = t004form.getFile().getInputStream();
+    System.out.println("action 2: " + inputStream); // Debug InputStream
+
+    // Gọi service để parse CSV → Danh sách khách hàng
+    List<CustomerDto> customers = t004Service.parseCSV(inputStream);
+    
+    // Lỗi: customer3 chưa khai báo (đúng phải là customers)
+    for (CustomerDto customer : customer3) {
+        // In thông tin từng khách hàng (debug)
+        System.out.println("Customer Data:" + customer.toString());
+    }
+
+    // Gọi service để lưu danh sách khách hàng vào DB
+    // PSN_CD: Mã người thực hiện thao tác
+    Map<String, String> result = t004Service.saveCustomers(customers, PSN_CD);
+
+    // Đẩy kết quả sang JSP:
+    // insertedLines: Số dòng được thêm mới
+    // updatedLines: Số dòng được cập nhật
+    request.setAttribute("insertedLines", result.get("insertedLines"));
+    request.setAttribute("updatedLines", result.get("updatedLines"));
+    
+    // Thiếu return ActionForward (cần trả về trang kết quả)
+}
+
+
+public List<CustomerDto> parseCSV(InputStream inputStream) throws Exception {
+    // Khởi tạo danh sách khách hàng
+    List<CustomerDto> customers = new ArrayList<>();
+    // Khởi tạo đối tượng lưu lỗi validate (dùng cho Struts)
+    ActionErrors errors = new ActionErrors();
+    // Đọc file CSV qua BufferedReader
+    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+    
+    String line; // Lưu từng dòng CSV
+    int userId = 0; // Tạm lưu ID khách hàng
+    int linenNumber = 0; // Đếm số dòng (lỗi chính tả: lineNumber)
+
+    // Bỏ qua dòng header (dòng đầu tiên)
+    reader.readLine();
+
+    // Đọc từng dòng CSV (lỗi cú pháp: while (!line = reader.readLine()) != null))
+    while ((line = reader.readLine()) != null) {
+        linenNumber++; // Tăng số dòng đọc được
+        String[] data = line.split(","); // Tách dòng thành mảng theo dấu ,
+
+        // Bỏ qua dòng không đủ 6 cột
+        if (data.length < 6) continue;
+
+        // Parse từng trường dữ liệu:
+        String customerId = data[0].trim(); // ID khách hàng
+        String customerName = data[1].trim(); // Tên
+        String sex = data[2].trim(); // Giới tính (lỗi: biến Sex viết hoa)
+        String birthday = ConvertDate.convertDateWithReadFileCSV(data[3].trim()); // Ngày sinh (đã convert)
+        String email = data[4].trim(); // Email
+        String address = data[5].trim(); // Địa chỉ
+
+        // Chỉ xử lý nếu customerId không rỗng
+        if (!customerId.isEmpty()) {
+            userId = Integer.parseInt(customerId); // Chuyển ID sang số
+
+            // Kiểm tra ID có tồn tại trong DB không
+            CustomerDto existingCustomer = t089D80.getCustomerById(userId);
+            if (existingCustomer == null) {
+                // Thêm lỗi nếu ID không tồn tại
+                errors.add("error", new ActionMessage("message.error.customer.id", linenNumber, userId));
+            }
+
+            // Validate tên khách hàng:
+            if (customerName.isEmpty()) {
+                errors.add("error", new ActionMessage("message.error.customer.name", linenNumber));
+            } else if (customerName.length() > 50) {
+                errors.add("error", new ActionMessage("message.error.customer.lengthName", linenNumber));
+            }
+
+            // Validate giới tính (chỉ chấp nhận Male/Female)
+            if (!sex.equals("Male") && !sex.equals("Female")) {
+                errors.add("error", new ActionMessage("message.error.customer.sex", linenNumber, sex));
+            }
+
+            // Validate ngày sinh (regex sai: "\d(44)/\d(2)/\d(2)")
+            if (!birthday.matches("\\d{4}/\\d{2}/\\d{2}")) {
+                errors.add("error", new ActionMessage("message.error.customer.birthday", linenNumber, birthday));
+            }
+
+            // Validate email (regex sai)
+            if (!email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")) {
+                errors.add("error", new ActionMessage("message.error.customer.email", linenNumber, email));
+            } else if (email.length() > 40) {
+                errors.add("error", new ActionMessage("message.error.customer.lengthEmail", linenNumber));
+            }
+
+            // Validate địa chỉ (tối đa 250 ký tự)
+            if (address.length() > 250) {
+                errors.add("error", new ActionMessage("message.error.customer.address", linenNumber));
+            }
+        }
+    }
+    // Thiếu: Xử lý errors nếu có và trả về danh sách customers
+    return customers;
+}
+
+public Map<String, String> saveCustomers(List<CustomerDto> customers, int userUpdateOrAdd) {
+    // In log ID người thực hiện
+    System.out.println("T004 service userAdd: " + userUpdateOrAdd);
+    
+    String sex = ""; // Lưu giới tính dạng DB (0/1)
+    // Danh sách số dòng thêm mới/cập nhật
+    List<Integer> insertedLines = new ArrayList<>();
+    List<Integer> updatedLines = new ArrayList<>();
+
+    // Duyệt từng khách hàng
+    for (int i = 0; i < customers.size(); i++) {
+        CustomerDto customer = customers.get(i);
+
+        // TH1: Thêm mới (CustomerID = 0)
+        if (customer.getCustomerID() == 0) {
+            // Convert giới tính sang 0/1
+            if (!customer.getSex().isEmpty()) {
+                sex = ("Female".equals(customer.getSex())) ? "1" : "0";
+            }
+            
+            // Tạo DTO để lưu DB
+            CustomerDto customerDto = new CustomerDto(
+                customer.getCustomerID(),
+                customer.getCustomerName(),
+                sex,
+                customer.getBirthday(),
+                customer.getEmail(),
+                customer.getAddress()
+            );
+            
+            // Gọi DAO để thêm vào DB
+            boolean isSuccess = t003Dao.addCustomer(customerDto, userUpdateOrAdd);
+            if (isSuccess) {
+                insertedLines.add(i + 1); // Lưu vị trí dòng (bắt đầu từ 1)
+            }
+        } 
+        // TH2: Cập nhật (CustomerID > 0)
+        else if (customer.getCustomerID() > 0) {
+            // Lấy thông tin khách hàng hiện có từ DB
+            CustomerDto existingCustomer = t003Dao.getCustomerById(customer.getCustomerID());
+            
+            if (existingCustomer != null) {
+                // Kiểm tra dữ liệu có thay đổi không
+                boolean isChanged = 
+                    !Objects.equals(existingCustomer.getCustomerName(), customer.getCustomerName()) ||
+                    !Objects.equals(existingCustomer.getSex(), customer.getSex()) ||
+                    !Objects.equals(existingCustomer.getBirthday(), customer.getBirthday()) ||
+                    !Objects.equals(existingCustomer.getEmail(), customer.getEmail()) ||
+                    !Objects.equals(existingCustomer.getAddress(), customer.getAddress());
+
+                // Nếu có thay đổi → Cập nhật
+                if (isChanged) {
+                    if (!customer.getSex().isEmpty()) {
+                        sex = ("Female".equals(customer.getSex())) ? "1" : "0";
+                    }
+                    
+                    // Tạo DTO để cập nhật
+                    CustomerDto customerDto = new CustomerDto(
+                        customer.getCustomerID(),
+                        customer.getCustomerName(),
+                        sex,
+                        customer.getBirthday(), // Lỗi: getBirthday viết sai
+                        customer.getEmail(),
+                        customer.getAddress()
+                    );
+                    
+                    // Gọi DAO để cập nhật
+                    boolean isSuccess = t003Dao.updateCustomer(customerDto, userUpdateOrAdd);
+                    if (isSuccess) {
+                        updatedLines.add(i + 1); // Lưu vị trí dòng
+                    }
+                }
+            }
+        }
+    }
+
+    // Đóng gói kết quả thành chuỗi (ví dụ: "1,3,5")
+    Map<String, String> result = new HashMap<>();
+    result.put("insertedLines", String.join(",", insertedLines.stream().map(String::valueOf).toList()));
+    result.put("updatedLines", String.join(",", updatedLines.stream().map(String::valueOf).toList()));
+    return result;
+}
+------------------
+  public class ParseResult
+fix------------------
+public class ParseResult {
+    private List<CustomerDto> customers;
+    private ActionErrors errors;
+
+    // Constructor, getters, setters
+}
+
+public ParseResult parseCSV(InputStream inputStream) throws Exception {
+    List<CustomerDto> customers = new ArrayList<>();
+    ActionErrors errors = new ActionErrors();
+    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+    
+    // ... (phần code parse CSV như trước)
+
+    // Trả về cả danh sách customers và lỗi (nếu có)
+    return new ParseResult(customers, errors);
+}
+
+
+public ActionForward ImportFile(ActionMapping mapping, ActionForm form, 
+        HttpServletRequest request, HttpServletResponse response) throws Exception {
+    
+    // ... (phần code kiểm tra session, file như trước)
+
+    // Parse CSV và nhận kết quả (cả data và lỗi)
+    ParseResult parseResult = t004Service.parseCSV(inputStream);
+    
+    // Nếu có lỗi validate
+    if (parseResult.getErrors() != null && !parseResult.getErrors().isEmpty()) {
+        request.setAttribute("errors", parseResult.getErrors());
+        return mapping.findForward("validationError"); // Forward tới trang báo lỗi
+    }
+
+    // Nếu không có lỗi, tiếp tục xử lý lưu dữ liệu
+    Map<String, String> result = t004Service.saveCustomers(parseResult.getCustomers(), PSN_CD);
+    
+    // ... (phần còn lại)
+}
+
+--------------------------
+  Cahs khac
+-------------------------
+
+  public ActionForward ImportFile(ActionMapping mapping, ActionForm form, 
+        HttpServletRequest request, HttpServletResponse response) throws Exception {
+    
+    // ... (phần kiểm tra session, file như trước)
+
+    // Gọi parseCSV và nhận kết quả
+    Map<String, Object> parseResult = t004Service.parseCSV(inputStream);
+    String errorMessages = (String) parseResult.get("errorMessages");
+
+    // Nếu có lỗi
+    if (!errorMessages.isEmpty()) {
+        request.setAttribute("errorMessages", errorMessages); // Truyền chuỗi lỗi sang JSP
+        return mapping.findForward("validationError");
+    }
+
+    // Nếu không có lỗi, tiếp tục xử lý
+    List<CustomerDto> customers = (List<CustomerDto>) parseResult.get("customers");
+    Map<String, String> saveResult = t004Service.saveCustomers(customers, PSN_CD);
+    
+    // ... (phần còn lại)
+}
+public Map<String, Object> parseCSV(InputStream inputStream) throws Exception {
+    List<CustomerDto> customers = new ArrayList<>();
+    List<String> errorMessages = new ArrayList<>(); // Thay ActionErrors bằng List<String>
+    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+    
+    String line;
+    int lineNumber = 0;
+    reader.readLine(); // Bỏ qua header
+
+    while ((line = reader.readLine()) != null) {
+        lineNumber++;
+        String[] data = line.split(",");
+        if (data.length < 6) continue;
+
+        // Parse và validate từng trường
+        String customerId = data[0].trim();
+        if (!customerId.isEmpty()) {
+            // Validate các trường và thêm lỗi vào List
+            if (data[1].trim().isEmpty()) {
+                errorMessages.add("Line " + lineNumber + ": CUSTOMER_NAME is empty");
+            }
+            if (!data[2].trim().matches("Male|Female")) {
+                errorMessages.add("Line " + lineNumber + ": SEX is invalid");
+            }
+            // ... (thêm các validate khác)
+        }
+    }
+
+    // Đóng gói kết quả
+    Map<String, Object> result = new HashMap<>();
+    result.put("customers", customers);
+    result.put("errorMessages", String.join("\n", errorMessages)); // Nối lỗi thành chuỗi
+    return result;
+}
+
+<%@ page contentType="text/html; charset=UTF-8" %>
+<script>
+    // Hiển thị tất cả lỗi trong một alert
+    alert(`${requestScope.errorMessages}`); 
+    
+    // Hoặc hiển thị từng dòng lỗi (nếu muốn)
+    <c:if test="${not empty requestScope.errorMessages}">
+        <c:forTokens items="${requestScope.errorMessages}" delims="\n" var="error">
+            alert("${error}");
+        </c:forTokens>
+    </c:if>
+</script>
+          
