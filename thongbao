@@ -77,3 +77,36 @@ public ActionForward importCustomers(ActionMapping mapping, ActionForm form,
     };
 </script>
 
+
+
+
+
+
+<script>
+    window.onload = function () {
+        var insertedLines = "<%= request.getAttribute("insertedLines") %>";
+        var updatedLines = "<%= request.getAttribute("updatedLines") %>";
+        var errorMessages = "<%= request.getAttribute("errorMessages") %>";
+
+        var message = "";
+
+        if (errorMessages && errorMessages.trim().length > 0) {
+            message += "Lỗi khi import:\n" + errorMessages + "\n\n";
+        }
+
+        if (insertedLines || updatedLines) {
+            message += "Đã import thành công.\n";
+            if (insertedLines) {
+                message += "Insert line(s): " + insertedLines + "\n";
+            }
+            if (updatedLines) {
+                message += "Update line(s): " + updatedLines + "\n";
+            }
+        }
+
+        if (message.length > 0) {
+            alert(message);
+        }
+    };
+</script>
+
