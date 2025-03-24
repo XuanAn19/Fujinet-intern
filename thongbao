@@ -1,0 +1,79 @@
+public Map<String, String> saveCustomers(List<CustomerDto> customers, int userUpdateOrAdd) {
+    System.out.println("T004 service userAdd: " + userUpdateOrAdd);
+
+    List<Integer> insertedLines = new ArrayList<>();
+    List<Integer> updatedLines = new ArrayList<>();
+
+    for (int i = 0; i < customers.size(); i++) {
+        CustomerDto customer = customers.get(i);
+
+        if (customer.getCustomerID() == 0) {
+            String sex = "0";
+            if (!customer.getSex().isEmpty()) {
+                sex = ("Female".equals(customer.getSex())) ? "1" : "0";
+            }
+            CustomerDto customerDto = new CustomerDto(customer.getCustomerID(), customer.getCustomerName(), sex,
+                    customer.getBirthday(), customer.getEmail(), customer.getAddress());
+
+            boolean isTrue = t003Dao.addCustomer(customerDto, userUpdateOrAdd);
+            if (isTrue) {
+                insertedLines.add(i + 1); // Lưu index của dòng insert (bắt đầu từ 1)
+            }
+        } else if (customer.getCustomerID() > 0) {
+            CustomerDto existingCustomer = t003Dao.getCustomerById(customer.getCustomerID());
+            if (existingCustomer != null) {
+                boolean isChanged =
+                        !Objects.equals(existingCustomer.getCustomerName(), customer.getCustomerName()) ||
+                        !Objects.equals(existingCustomer.getSex(), customer.getSex()) ||
+                        !Objects.equals(existingCustomer.getBirthday(), customer.getBirthday()) ||
+                        !Objects.equals(existingCustomer.getEmail(), customer.getEmail()) ||
+                        !Objects.equals(existingCustomer.getAddress(), customer.getAddress());
+
+                if (isChanged) {
+                    boolean isTrue = t003Dao.updateCustomer(customer, userUpdateOrAdd);
+                    if (isTrue) {
+                        updatedLines.add(i + 1); // Lưu index của dòng update (bắt đầu từ 1)
+                    }
+                }
+            }
+        }
+    }
+
+    // Trả về danh sách dòng insert và update
+    Map<String, String> result = new HashMap<>();
+    result.put("insertedLines", String.join(",", insertedLines.stream().map(String::valueOf).toList()));
+    result.put("updatedLines", String.join(",", updatedLines.stream().map(String::valueOf).toList()));
+    return result;
+}
+
+
+
+public ActionForward importCustomers(ActionMapping mapping, ActionForm form,
+                                     HttpServletRequest request, HttpServletResponse response) {
+    T002Form t002Form = (T002Form) form;
+    
+    // Gọi service để import danh sách khách hàng
+    Map<String, String> result = t002Service.saveCustomers(t002Form.getCustomers(), t002Form.getUserUpdateOrAdd());
+
+    // Chuyển kết quả sang JSP
+    request.setAttribute("insertedLines", result.get("insertedLines"));
+    request.setAttribute("updatedLines", result.get("updatedLines"));
+
+    return mapping.findForward("success");
+}
+
+
+
+<script>
+    window.onload = function () {
+        var insertedLines = "<%= request.getAttribute("insertedLines") %>";
+        var updatedLines = "<%= request.getAttribute("updatedLines") %>";
+
+        if (insertedLines || updatedLines) {
+            alert("Đã import thành công.\n" +
+                  (insertedLines ? "Insert line(s): " + insertedLines + "\n" : "") +
+                  (updatedLines ? "Update line(s): " + updatedLines : ""));
+        }
+    };
+</script>
+
