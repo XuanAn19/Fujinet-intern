@@ -1,0 +1,19 @@
+<% 
+    ActionErrors errors = (ActionErrors) request.getAttribute(org.apache.struts.Globals.ERROR_KEY);
+    if (errors != null && !errors.isEmpty()) { 
+        StringBuilder errorMessage = new StringBuilder();
+        for (Iterator it = errors.get(); it.hasNext(); ) {
+            ActionMessage error = (ActionMessage) it.next();
+            errorMessage.append(error.getKey()).append("\\n"); 
+        }
+%>
+    <script>
+        alert("<%= errorMessage.toString() %>");
+    </script>
+<% 
+    } 
+%>
+ActionErrors errors = new ActionErrors();
+errors.add("customerError", new ActionMessage("message.error.customer.name", lineNumber, customer.getEmail()));
+saveErrors(request, errors);
+
