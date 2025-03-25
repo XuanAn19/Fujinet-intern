@@ -1,0 +1,119 @@
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+<%@ taglib uri="http://struts.apache.org/tags-bean" prefix="bean" %>
+<%@ taglib uri="http://struts.apache.org/tags-logic" prefix="logic" %>
+
+<bean:define id="settings" name="T002Form" type="fjs.cs.form.T002Form"/>
+
+<table border="1">
+    <tr>
+        <logic:iterate name="settings" property="visibleColumns" id="column">
+            <th><bean:write name="column"/></th>
+        </logic:iterate>
+    </tr>
+
+    <logic:iterate name="customerList" id="customer">
+        <tr>
+            <logic:iterate name="settings" property="visibleColumns" id="column">
+                <td><bean:write name="customer" property="<%= column.toString() %>"/></td>
+            </logic:iterate>
+        </tr>
+    </logic:iterate>
+</table>
+
+<!-- Nút Setting -->
+<button onclick="updateSettings()">Setting</button>
+
+<script>
+    function updateSettings() {
+        const visibleColumns = ["checkbox", "customerId", "customerName", "sex", "birthday", "address"];
+        const hiddenColumns = ["email"];
+
+        fetch('T002Setting.do', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                visibleColumns: visibleColumns,
+                hiddenColumns: hiddenColumns
+            })
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            }
+        });
+    }
+</script>
+
+
+
+package fjs.cs.action;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import fjs.cs.dto.TableColumnSettings;
+import fjs.cs.form.T002Form;
+import org.apache.struts.actions.DispatchAction;
+import org.apache.struts.action.*;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.BufferedReader;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class T002DispatchAction extends DispatchAction {
+    // Danh sách cột mặc định nếu chưa có session
+    private static final List<String> DEFAULT_VISIBLE_COLUMNS = Arrays.asList(
+        "checkbox", "customerId", "customerName", "sex", "birthday", "address"
+    );
+    private static final List<String> DEFAULT_HIDDEN_COLUMNS = Arrays.asList("email");
+
+    /**
+     * 📌 Phương thức 1: Load danh sách cột từ session (hoặc giá trị mặc định nếu chưa có)
+     */
+    public ActionForward loadTableSettings(ActionMapping mapping, ActionForm form,
+                                           HttpServletRequest request, HttpServletResponse response) {
+        T002Form t002Form = (T002Form) form;
+
+        // Kiểm tra session
+        TableColumnSettings settings = (TableColumnSettings) request.getSession().getAttribute("tableSettings");
+
+        if (settings == null) {
+            // Nếu chưa có, khởi tạo giá trị mặc định
+            settings = new TableColumnSettings(DEFAULT_VISIBLE_COLUMNS, DEFAULT_HIDDEN_COLUMNS);
+            request.getSession().setAttribute("tableSettings", settings);
+        }
+
+        // Gán vào form để hiển thị
+        t002Form.setVisibleColumns(settings.getVisibleColumns());
+        t002Form.setHiddenColumns(settings.getHiddenColumns());
+
+        return mapping.findForward("success");
+    }
+
+    /**
+     * 📌 Phương thức 2: Nhận danh sách cột mới và cập nhật vào session
+     */
+    public ActionForward updateTableSettings(ActionMapping mapping, ActionForm form,
+                                             HttpServletRequest request, HttpServletResponse response) {
+        try {
+            // Đọc JSON từ request body
+            BufferedReader reader = request.getReader();
+            String json = reader.lines().collect(Collectors.joining());
+
+            // Chuyển đổi JSON thành object
+            ObjectMapper objectMapper = new ObjectMapper();
+            TableColumnSettings settings = objectMapper.readValue(json, TableColumnSettings.class);
+
+            // Lưu vào session
+            request.getSession().setAttribute("tableSettings", settings);
+
+            response.setStatus(HttpServletResponse.SC_OK);
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        }
+        return null;
+    }
+}
+
