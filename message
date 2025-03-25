@@ -17,3 +17,30 @@ ActionErrors errors = new ActionErrors();
 errors.add("customerError", new ActionMessage("message.error.customer.name", lineNumber, customer.getEmail()));
 saveErrors(request, errors);
 
+
+
+<script>
+    var errorMessages = [];
+    <% 
+        ActionErrors errors = (ActionErrors) request.getAttribute(org.apache.struts.Globals.ERROR_KEY);
+        if (errors != null && !errors.isEmpty()) { 
+            for (Iterator it = errors.get(); it.hasNext(); ) {
+                ActionMessage error = (ActionMessage) it.next();
+    %>
+                errorMessages.push("<%= error.getKey() %>"); 
+    <% 
+            } 
+        } 
+    %>
+
+    if (errorMessages.length > 0) {
+        showErrorMessages(errorMessages);
+    }
+</script>
+
+
+function showErrorMessages(errors) {
+    let message = errors.join("\n"); // Gộp lỗi thành chuỗi
+    alert(message); // Hiển thị lỗi bằng alert
+}
+
