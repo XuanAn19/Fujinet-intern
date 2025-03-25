@@ -1,0 +1,166 @@
+package fjs.cs.action;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+
+import fjs.cs.bean.T002SettingBean;
+
+public class T002Action extends Action {
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form, 
+                                 HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession();
+
+        // Lấy cột hiển thị từ session
+        T002SettingBean settingBean = (T002SettingBean) session.getAttribute("T002Setting");
+        if (settingBean == null) {
+            settingBean = new T002SettingBean();
+            session.setAttribute("T002Setting", settingBean);
+        }
+
+        // Gửi bean xuống JSP
+        request.setAttribute("settingBean", settingBean);
+
+        return mapping.findForward("success");
+    }
+}
+
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib uri="http://struts.apache.org/tags-logic" prefix="logic" %>
+<%@ taglib uri="http://struts.apache.org/tags-bean" prefix="bean" %>
+
+<html>
+<head>
+    <title>Danh sách khách hàng</title>
+</head>
+<body>
+
+<h2>Danh sách khách hàng</h2>
+
+<table border="1">
+    <thead>
+        <tr>
+            <logic:iterate id="column" name="settingBean" property="visibleColumns">
+                <th data-column-id="<bean:write name="column"/>">
+                    <bean:write name="column"/>
+                </th>
+            </logic:iterate>
+        </tr>
+    </thead>
+    <tbody>
+        <logic:iterate id="customer" name="customerList">
+            <tr>
+                <logic:iterate id="column" name="settingBean" property="visibleColumns">
+                    <td class="<bean:write name="column"/>">
+                        <bean:write name="customer" property="<%= column %>"/>
+                    </td>
+                </logic:iterate>
+            </tr>
+        </logic:iterate>
+    </tbody>
+</table>
+
+<button onclick="window.location.href='T005.do?action=setting'">Cài đặt cột</button>
+
+</body>
+</html>
+---------------
+giả claapk
+public class T002Action extends Action {
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession();
+        
+        T002SettingBean settingBean = (T002SettingBean) session.getAttribute("T002Setting");
+        if (settingBean == null) {
+            settingBean = new T002SettingBean();
+            settingBean.setVisibleColumns(Arrays.asList("customerId", "customerName", "sex", "birthday", "address"));
+            settingBean.setHiddenColumns(Arrays.asList("email"));
+        }
+
+        request.setAttribute("settingBean", settingBean);
+        return mapping.findForward("success");
+    }
+}
+
+-----------
+T005, hàm khi nhấn vào là lưu 
+function saveColumnSetting() {
+    let visibleColumns = [];
+    let hiddenColumns = [];
+
+    document.querySelectorAll("th").forEach(th => {
+        let colId = th.getAttribute("data-column-id");
+        if (colId) {
+            if (th.style.display === "none") {
+                hiddenColumns.push(colId);
+            } else {
+                visibleColumns.push(colId);
+            }
+        }
+    });
+
+    let settings = {
+        visibleColumns: visibleColumns,
+        hiddenColumns: hiddenColumns
+    };
+
+    sessionStorage.setItem("columnSettings", JSON.stringify(settings));
+
+    // Gửi thiết lập cột lên server trước khi chuyển trang
+    fetch("T005.do?action=saveSetting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings)
+    }).then(() => {
+        window.location.href = "T002.do";
+    });
+}
+
+public class T005Action extends Action {
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) throws IOException {
+        HttpSession session = request.getSession();
+        
+        if ("saveSetting".equals(request.getParameter("action"))) {
+            BufferedReader reader = request.getReader();
+            Gson gson = new Gson();
+            T002SettingBean settings = gson.fromJson(reader, T002SettingBean.class);
+            
+            session.setAttribute("T002Setting", settings);
+            response.setStatus(HttpServletResponse.SC_OK);
+            return null; // Không chuyển trang, chỉ trả về trạng thái OK
+        }
+
+        return mapping.findForward("success");
+    }
+}
+
+--------
+Ẩn/hiện cột theo thiết lập trong T002.jsp
+Thêm data-column-id vào th:
+<thead>
+    <tr>
+        <th><input type="checkbox" id="selectAll"></th>
+        <th data-column-id="customerId">USERID</th>
+        <th data-column-id="customerName">Name</th>
+        <th data-column-id="sex">Sex</th>
+        <th data-column-id="birthday">Birthday</th>
+        <th data-column-id="address">Address</th>
+    </tr>
+</thead>
+
+----------------------------------------------------------
+<logic:iterate name="visibleColumns" id="column">
+                    <th><bean:write name="column"/></th>
+                </logic:iterate>
+name="visibleColumns" ở đâu 
+request.setAttribute("visibleColumns", Arrays.asList(visibleColumns));
+
+---------------------------------------------------------------
