@@ -1,0 +1,208 @@
+package fjs.cs;
+
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.util.Arrays;
+import java.util.List;
+
+public class T002Action extends Action {
+    @Override
+    public ActionForward execute(ActionMapping mapping, org.apache.struts.action.ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession();
+
+        // Lấy danh sách cột từ database (hoặc giả lập)
+        List<String> visibleColumns = Arrays.asList("customerId", "customerName", "email");
+        List<String> hiddenColumns = Arrays.asList("sex", "birthDay", "address");
+
+        // Lưu vào session bằng class ColumnSettings
+        ColumnSettings columnSettings = new ColumnSettings(visibleColumns, hiddenColumns);
+        session.setAttribute("columnSettings", columnSettings);
+
+        return mapping.findForward("gotoT005");
+    }
+}
+
+
+
+
+package fjs.cs;
+
+import java.io.Serializable;
+import java.util.List;
+
+public class ColumnSettings implements Serializable {
+    private List<String> visibleColumns;
+    private List<String> hiddenColumns;
+
+    public ColumnSettings(List<String> visibleColumns, List<String> hiddenColumns) {
+        this.visibleColumns = visibleColumns;
+        this.hiddenColumns = hiddenColumns;
+    }
+
+    public List<String> getVisibleColumns() {
+        return visibleColumns;
+    }
+
+    public void setVisibleColumns(List<String> visibleColumns) {
+        this.visibleColumns = visibleColumns;
+    }
+
+    public List<String> getHiddenColumns() {
+        return hiddenColumns;
+    }
+
+    public void setHiddenColumns(List<String> hiddenColumns) {
+        this.hiddenColumns = hiddenColumns;
+    }
+}
+
+
+
+package fjs.cs;
+
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.util.Arrays;
+import java.util.List;
+
+public class T005Action extends Action {
+    @Override
+    public ActionForward execute(ActionMapping mapping, org.apache.struts.action.ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) {
+        return mapping.findForward("gotoT005");
+    }
+
+    public ActionForward save(ActionMapping mapping, org.apache.struts.action.ActionForm form,
+                              HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession();
+
+        // Lấy danh sách cột từ request
+        String hiddenColumnsStr = request.getParameter("hiddenColumns");
+        String visibleColumnsStr = request.getParameter("visibleColumns");
+
+        List<String> hiddenColumns = Arrays.asList(hiddenColumnsStr.split(","));
+        List<String> visibleColumns = Arrays.asList(visibleColumnsStr.split(","));
+
+        // Cập nhật session
+        ColumnSettings columnSettings = new ColumnSettings(visibleColumns, hiddenColumns);
+        session.setAttribute("columnSettings", columnSettings);
+
+        return mapping.findForward("backToT002");
+    }
+
+    public ActionForward cancel(ActionMapping mapping, org.apache.struts.action.ActionForm form,
+                                HttpServletRequest request, HttpServletResponse response) {
+        return mapping.findForward("backToT002");
+    }
+}
+
+
+
+<action path="/T002Action"
+        type="fjs.cs.T002Action"
+        scope="request"
+        validate="false">
+    <forward name="gotoT005" path="/T005Action.do"/>
+</action>
+
+<action path="/T005Action"
+        type="fjs.cs.T005Action"
+        scope="request"
+        validate="false"
+        input="/WEB-INF/jsp/T005.jsp">
+    <forward name="backToT002" path="/T002Action.do" redirect="true"/>
+</action>
+
+
+<%@ taglib uri="http://java.sun.com/jstl/core" prefix="c" %>
+<%@ taglib uri="http://struts.apache.org/tags-html" prefix="html" %>
+
+<html:form action="/T005Action">
+    <table>
+        <tr>
+            <!-- Danh sách cột chưa hiển thị -->
+            <td>
+                <h3>Các cột chưa hiển thị</h3>
+                <select id="hiddenColumns" multiple size="5">
+                    <c:forEach var="col" items="${sessionScope.columnSettings.hiddenColumns}">
+                        <option value="${col}">${col}</option>
+                    </c:forEach>
+                </select>
+            </td>
+
+            <!-- Các nút thao tác -->
+            <td>
+                <button type="button" id="btnRight">→</button><br>
+                <button type="button" id="btnLeft">←</button><br>
+                <button type="button" id="btnUp">↑</button><br>
+                <button type="button" id="btnDown">↓</button>
+            </td>
+
+            <!-- Danh sách cột đang hiển thị -->
+            <td>
+                <h3>Các cột đang hiển thị</h3>
+                <select id="visibleColumns" multiple size="5">
+                    <c:forEach var="col" items="${sessionScope.columnSettings.visibleColumns}">
+                        <option value="${col}">${col}</option>
+                    </c:forEach>
+                </select>
+            </td>
+        </tr>
+    </table>
+
+    <input type="hidden" id="hiddenColumnsInput" name="hiddenColumns">
+    <input type="hidden" id="visibleColumnsInput" name="visibleColumns">
+
+    <html:submit property="save" onclick="updateHiddenFields()">Lưu</html:submit>
+    <html:submit property="cancel">Hủy</html:submit>
+</html:form>
+
+<script src="scripts/t005.js"></script>
+
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    const btnRight = document.getElementById("btnRight");
+    const btnLeft = document.getElementById("btnLeft");
+    const btnUp = document.getElementById("btnUp");
+    const btnDown = document.getElementById("btnDown");
+
+    const hiddenColumns = document.getElementById("hiddenColumns");
+    const visibleColumns = document.getElementById("visibleColumns");
+
+    function moveOptions(fromSelect, toSelect, lockedItems = []) {
+        Array.from(fromSelect.selectedOptions).forEach(option => {
+            if (!lockedItems.includes(option.value)) {
+                toSelect.appendChild(option);
+            } else {
+                alert(`${option.value} không thể ẩn!`);
+            }
+        });
+    }
+
+    btnRight.addEventListener("click", () => moveOptions(hiddenColumns, visibleColumns));
+    btnLeft.addEventListener("click", () => moveOptions(visibleColumns, hiddenColumns, ["customerId"]));
+    btnUp.addEventListener("click", () => moveOptionUp(visibleColumns));
+    btnDown.addEventListener("click", () => moveOptionDown(visibleColumns));
+
+    window.updateHiddenFields = function () {
+        document.getElementById("hiddenColumnsInput").value = getOptions(hiddenColumns);
+        document.getElementById("visibleColumnsInput").value = getOptions(visibleColumns);
+    };
+
+    function getOptions(select) {
+        return Array.from(select.options).map(option => option.value).join(",");
+    }
+});
+
