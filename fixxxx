@@ -424,4 +424,40 @@ document.addEventListener("DOMContentLoaded", function () {
         </table>
     </div>
 </div>
+--------------------------------------------------------------------------------------------
+
+Fix lỗi BeanUtils.populate()
+-----------------------------------------------------------------------------------------
+public ActionForward execute(ActionMapping mapping, ActionForm form,
+                             HttpServletRequest request, HttpServletResponse response) throws IOException {
+    try {
+        // Đọc JSON từ request body
+        ObjectMapper objectMapper = new ObjectMapper();
+        Map<String, Object> paramMap = objectMapper.readValue(request.getReader(), Map.class);
+
+        // Tạo instance của Bean
+        ColumnSettings settings = new ColumnSettings();
+
+        // Populate dữ liệu vào Bean
+        BeanUtils.populate(settings, paramMap);
+
+        // Debug kiểm tra
+        System.out.println("Visible Columns: " + settings.getVisibleColumns());
+        System.out.println("Hidden Columns: " + settings.getHiddenColumns());
+
+        // Lưu danh sách cột vào session
+        request.getSession().setAttribute("visibleColumns", settings.getVisibleColumns());
+        request.getSession().setAttribute("hiddenColumns", settings.getHiddenColumns());
+
+        // Phản hồi JSON thành công
+        response.setContentType("application/json");
+        response.getWriter().write("{\"status\":\"success\"}");
+        return null;
+    } catch (Exception e) {
+        e.printStackTrace();
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        response.getWriter().write("{\"status\":\"error\",\"message\":\"Invalid JSON format\"}");
+        return null;
+    }
+}
 
