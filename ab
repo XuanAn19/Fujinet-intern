@@ -1,0 +1,99 @@
+import org.json.JSONObject;
+
+public ActionForward execute(ActionMapping mapping, ActionForm form,
+                             HttpServletRequest request, HttpServletResponse response) throws IOException {
+    try {
+        // Đọc dữ liệu từ request body
+        StringBuilder jsonBuffer = new StringBuilder();
+        String line;
+        BufferedReader reader = request.getReader();
+        while ((line = reader.readLine()) != null) {
+            jsonBuffer.append(line);
+        }
+        
+        // Parse JSON thành JSONObject
+        JSONObject jsonObject = new JSONObject(jsonBuffer.toString());
+
+        // Lấy danh sách cột từ JSON
+        List<String> visibleColumns = new ArrayList<>();
+        List<String> hiddenColumns = new ArrayList<>();
+
+        JSONArray visibleArray = jsonObject.getJSONArray("visibleColumns");
+        JSONArray hiddenArray = jsonObject.getJSONArray("hiddenColumns");
+
+        for (int i = 0; i < visibleArray.length(); i++) {
+            visibleColumns.add(visibleArray.getString(i));
+        }
+        for (int i = 0; i < hiddenArray.length(); i++) {
+            hiddenColumns.add(hiddenArray.getString(i));
+        }
+
+        // Lưu danh sách cột vào session
+        request.getSession().setAttribute("visibleColumns", visibleColumns);
+        request.getSession().setAttribute("hiddenColumns", hiddenColumns);
+
+        // Phản hồi JSON thành công
+        response.setContentType("application/json");
+        response.getWriter().write("{\"status\":\"success\"}");
+        return null;
+    } catch (Exception e) {
+        e.printStackTrace();
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        response.getWriter().write("{\"status\":\"error\",\"message\":\"Invalid JSON format\"}");
+        return null;
+    }
+}
+
+
+
+public ActionForward execute(ActionMapping mapping, ActionForm form,
+                             HttpServletRequest request, HttpServletResponse response) throws IOException {
+    try {
+        // Đọc dữ liệu từ request body
+        StringBuilder jsonBuffer = new StringBuilder();
+        String line;
+        BufferedReader reader = request.getReader();
+        while ((line = reader.readLine()) != null) {
+            jsonBuffer.append(line);
+        }
+
+        // Chuyển JSON thành chuỗi
+        String json = jsonBuffer.toString();
+        json = json.replaceAll("[{}\"]", ""); // Loại bỏ dấu ngoặc nhọn và dấu "
+        
+        // Tách dữ liệu theo dấu phẩy
+        List<String> visibleColumns = new ArrayList<>();
+        List<String> hiddenColumns = new ArrayList<>();
+
+        String[] keyValues = json.split(",");
+        for (String keyValue : keyValues) {
+            String[] pair = keyValue.split(":");
+            if (pair.length == 2) {
+                String key = pair[0].trim();
+                String value = pair[1].trim();
+                
+                // Kiểm tra key để lưu đúng danh sách
+                if (key.equals("visibleColumns")) {
+                    visibleColumns.add(value);
+                } else if (key.equals("hiddenColumns")) {
+                    hiddenColumns.add(value);
+                }
+            }
+        }
+
+        // Lưu danh sách cột vào session
+        request.getSession().setAttribute("visibleColumns", visibleColumns);
+        request.getSession().setAttribute("hiddenColumns", hiddenColumns);
+
+        // Phản hồi JSON thành công
+        response.setContentType("application/json");
+        response.getWriter().write("{\"status\":\"success\"}");
+        return null;
+    } catch (Exception e) {
+        e.printStackTrace();
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        response.getWriter().write("{\"status\":\"error\",\"message\":\"Invalid JSON format\"}");
+        return null;
+    }
+}
+
