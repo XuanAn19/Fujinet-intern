@@ -1,0 +1,427 @@
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.List;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+
+public class T005Action extends Action {
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) throws IOException {
+        // Đọc JSON từ request body
+        ObjectMapper objectMapper = new ObjectMapper();
+        ColumnSettings settings = objectMapper.readValue(request.getReader(), ColumnSettings.class);
+
+        // Lưu danh sách cột vào session
+        request.getSession().setAttribute("visibleColumns", settings.getVisibleColumns());
+        request.getSession().setAttribute("hiddenColumns", settings.getHiddenColumns());
+
+        // Phản hồi JSON để xác nhận thành công
+        response.setContentType("application/json");
+        response.getWriter().write("{\"status\":\"success\"}");
+        return null; // Không cần chuyển hướng vì đã xử lý AJAX
+    }
+
+    // Lớp để ánh xạ JSON sang Java object
+    public static class ColumnSettings {
+        private List<String> visibleColumns;
+        private List<String> hiddenColumns;
+
+        public List<String> getVisibleColumns() {
+            return visibleColumns;
+        }
+
+        public void setVisibleColumns(List<String> visibleColumns) {
+            this.visibleColumns = visibleColumns;
+        }
+
+        public List<String> getHiddenColumns() {
+            return hiddenColumns;
+        }
+
+        public void setHiddenColumns(List<String> hiddenColumns) {
+            this.hiddenColumns = hiddenColumns;
+        }
+    }
+}
+
+<table id="data-table">
+    <thead>
+        <tr>
+            <c:forEach var="col" items="${sessionScope.visibleColumns}">
+                <th>${col}</th>
+            </c:forEach>
+        </tr>
+    </thead>
+    <tbody>
+        <c:forEach var="row" items="${sessionScope.data}">
+            <tr>
+                <c:forEach var="col" items="${sessionScope.visibleColumns}">
+                    <td>${row[col]}</td>
+                </c:forEach>
+            </tr>
+        </c:forEach>
+    </tbody>
+</table>
+
+----------
+t002---
+--
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+import java.util.List;
+
+public class T002Action extends Action {
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) {
+        // Lấy danh sách cột từ session
+        List<String> visibleColumns = (List<String>) request.getSession().getAttribute("visibleColumns");
+        List<String> hiddenColumns = (List<String>) request.getSession().getAttribute("hiddenColumns");
+
+        // Đặt vào request để JSP có thể sử dụng
+        request.setAttribute("visibleColumns", visibleColumns);
+        request.setAttribute("hiddenColumns", hiddenColumns);
+
+        return mapping.findForward("success"); // Chuyển đến trang JSP
+    }
+}
+<h3>Các cột đang hiển thị</h3>
+<select id="visibleColumns" multiple size="5">
+    <c:forEach var="col" items="${visibleColumns}">
+        <option value="${col}">${col}</option>
+    </c:forEach>
+</select>
+
+<h3>Các cột chưa hiển thị</h3>
+<select id="hiddenColumns" multiple size="5">
+    <c:forEach var="col" items="${hiddenColumns}">
+        <option value="${col}">${col}</option>
+    </c:forEach>
+</select>
+---------------
+Nếu bạn muốn lưu lại danh sách cột vào sessionStorage trên trình duyệt khi tải trang, bạn có thể dùng JavaScript:
+--------------
+document.addEventListener("DOMContentLoaded", function () {
+    let visibleColumns = JSON.parse(sessionStorage.getItem("columnSettings"))?.visibleColumns || [];
+    let hiddenColumns = JSON.parse(sessionStorage.getItem("columnSettings"))?.hiddenColumns || [];
+
+    let visibleSelect = document.getElementById("visibleColumns");
+    let hiddenSelect = document.getElementById("hiddenColumns");
+
+    function populateSelect(selectElement, items) {
+        selectElement.innerHTML = "";
+        items.forEach(col => {
+            let option = document.createElement("option");
+            option.value = col;
+            option.textContent = col;
+            selectElement.appendChild(option);
+        });
+    }
+
+    populateSelect(visibleSelect, visibleColumns);
+    populateSelect(hiddenSelect, hiddenColumns);
+});
+---------------
+full
+---------
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+
+public class T005Action extends Action {
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) throws IOException {
+        // Đọc JSON từ request body
+        ObjectMapper objectMapper = new ObjectMapper();
+        ColumnSettings settings = objectMapper.readValue(request.getReader(), ColumnSettings.class);
+
+        // Lưu đối tượng vào session
+        request.getSession().setAttribute("columnSettings", settings);
+
+        // Phản hồi JSON để xác nhận thành công
+        response.setContentType("application/json");
+        response.getWriter().write("{\"status\":\"success\"}");
+        return null; // Không cần chuyển hướng vì đây là AJAX request
+    }
+
+    // Lớp để ánh xạ JSON sang Java object
+    public static class ColumnSettings {
+        private List<String> visibleColumns;
+        private List<String> hiddenColumns;
+
+        public List<String> getVisibleColumns() { return visibleColumns; }
+        public void setVisibleColumns(List<String> visibleColumns) { this.visibleColumns = visibleColumns; }
+
+        public List<String> getHiddenColumns() { return hiddenColumns; }
+        public void setHiddenColumns(List<String> hiddenColumns) { this.hiddenColumns = hiddenColumns; }
+    }
+}
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import org.apache.struts.action.Action;
+import org.apache.struts.action.ActionForm;
+import org.apache.struts.action.ActionForward;
+import org.apache.struts.action.ActionMapping;
+import java.util.List;
+
+public class T002Action extends Action {
+    @Override
+    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                                 HttpServletRequest request, HttpServletResponse response) {
+        // Lấy đối tượng ColumnSettings từ session
+        T005Action.ColumnSettings settings = (T005Action.ColumnSettings) request.getSession().getAttribute("columnSettings");
+
+        // Nếu chưa có trong session, tạo mới để tránh lỗi NullPointerException
+        if (settings == null) {
+            settings = new T005Action.ColumnSettings();
+        }
+
+        // Đặt vào request để JSP có thể sử dụng
+        request.setAttribute("columnSettings", settings);
+
+        return mapping.findForward("success"); // Chuyển đến trang JSP
+    }
+}
+
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Cấu hình hiển thị cột</title>
+</head>
+<body>
+
+    <h3>Các cột đang hiển thị</h3>
+    <select id="visibleColumns" multiple size="5">
+        <c:forEach var="col" items="${columnSettings.visibleColumns}">
+            <option value="${col}">${col}</option>
+        </c:forEach>
+    </select>
+
+    <h3>Các cột chưa hiển thị</h3>
+    <select id="hiddenColumns" multiple size="5">
+        <c:forEach var="col" items="${columnSettings.hiddenColumns}">
+            <option value="${col}">${col}</option>
+        </c:forEach>
+    </select>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let settings = JSON.parse(sessionStorage.getItem("columnSettings"));
+
+            if (settings) {
+                let visibleSelect = document.getElementById("visibleColumns");
+                let hiddenSelect = document.getElementById("hiddenColumns");
+
+                function populateSelect(selectElement, items) {
+                    selectElement.innerHTML = "";
+                    items.forEach(col => {
+                        let option = document.createElement("option");
+                        option.value = col;
+                        option.textContent = col;
+                        selectElement.appendChild(option);
+                    });
+                }
+
+                populateSelect(visibleSelect, settings.visibleColumns);
+                populateSelect(hiddenSelect, settings.hiddenColumns);
+            }
+        });
+    </script>
+
+</body>
+</html>
+
+
+---js t002
+document.addEventListener("DOMContentLoaded", function () {
+    let settings = JSON.parse(sessionStorage.getItem("columnSettings"));
+
+    if (settings) {
+        let visibleSelect = document.getElementById("visibleColumns");
+        let hiddenSelect = document.getElementById("hiddenColumns");
+
+        function populateSelect(selectElement, items) {
+            selectElement.innerHTML = "";
+            items.forEach(col => {
+                let option = document.createElement("option");
+                option.value = col;
+                option.textContent = col;
+                selectElement.appendChild(option);
+            });
+        }
+
+        populateSelect(visibleSelect, settings.visibleColumns);
+        populateSelect(hiddenSelect, settings.hiddenColumns);
+    }
+});
+
+---------t002---------
+<%@ taglib uri="/WEB-INF/struts-bean.tld" prefix="bean" %>
+<%@ taglib uri="/WEB-INF/struts-logic.tld" prefix="logic" %>
+<%@ taglib uri="/WEB-INF/struts-html.tld" prefix="html" %>
+
+<div class="content">
+    <div class="table-container">
+        <table id="customerTable">
+            <thead>
+                <tr>
+                    <th class="chkALL"><input id="chkALL" type="checkbox"></th>
+                    
+                    <!-- Duyệt danh sách cột theo thứ tự từ session -->
+                    <logic:iterate id="column" name="visibleColumns">
+                        <th id="th_<bean:write name='column'/>">
+                            <label><bean:write name="column"/></label>
+                        </th>
+                    </logic:iterate>
+                </tr>
+            </thead>
+            <tbody>
+                <logic:iterate id="customer" name="customers">
+                    <tr>
+                        <td><input class="chkDetail" type="checkbox" value="<bean:write name='customer' property='customerID'/>"></td>
+
+                        <!-- Hiển thị dữ liệu theo đúng thứ tự cột -->
+                        <logic:iterate id="column" name="visibleColumns">
+                            <td>
+                                <logic:equal name="column" value="customerID">
+                                    <html:link action="/7003.do?action=edit" paramId="customerId" paramName="customer" paramProperty="customerID" styleClass="persist-search">
+                                        <bean:write name="customer" property="customerID"/>
+                                    </html:link>
+                                </logic:equal>
+                                <logic:equal name="column" value="customerName">
+                                    <bean:write name="customer" property="customerName"/>
+                                </logic:equal>
+                                <logic:equal name="column" value="sex">
+                                    <logic:equal name="customer" property="sex" value="1">Female</logic:equal>
+                                    <logic:equal name="customer" property="sex" value="0">Male</logic:equal>
+                                </logic:equal>
+                                <logic:equal name="column" value="birthday">
+                                    <bean:write name="customer" property="birthday"/>
+                                </logic:equal>
+                                <logic:equal name="column" value="address">
+                                    <bean:write name="customer" property="address"/>
+                                </logic:equal>
+                            </td>
+                        </logic:iterate>
+                    </tr>
+                </logic:iterate>
+            </tbody>
+        </table>
+    </div>
+</div>
+-----------------------------------------------------------
+
+<table>
+    <thead>
+        <tr>
+            <logic:iterate id="column" name="visibleColumns">
+                <th id="th<bean:write name="column"/>">
+                    <logic:equal name="column" value="chk">
+                        <input id="chkALL" type="checkbox">
+                    </logic:equal>
+                    <logic:notEqual name="column" value="chk">
+                        <label id="Lib<bean:write name="column"/>">
+                            <bean:write name="column"/>
+                        </label>
+                    </logic:notEqual>
+                </th>
+            </logic:iterate>
+        </tr>
+    </thead>
+    <tbody>
+        <logic:iterate id="customer" name="customers">
+            <tr>
+                <logic:iterate id="column" name="visibleColumns">
+                    <td>
+                        <logic:equal name="column" value="chk">
+                            <input class="chkDetail" type="checkbox" value="<bean:write name="customer" property="customerID"/>">
+                        </logic:equal>
+                        <logic:notEqual name="column" value="chk">
+                            <bean:write name="customer" property="<%= column %>"/>
+                        </logic:notEqual>
+                    </td>
+                </logic:iterate>
+            </tr>
+        </logic:iterate>
+    </tbody>
+</table>
+
+------------------------
+------------------------------
+<%@ taglib uri="/WEB-INF/struts-bean.tld" prefix="bean" %>
+<%@ taglib uri="/WEB-INF/struts-logic.tld" prefix="logic" %>
+<%@ taglib uri="/WEB-INF/struts-html.tld" prefix="html" %>
+
+<div class="content">
+    <div class="table-container">
+        <table id="customerTable">
+            <thead>
+                <tr>
+                    <logic:iterate id="column" name="visibleColumns">
+                        <th id="th_<bean:write name='column'/>">
+                            <logic:equal name="column" value="chk">
+                                <input id="chkALL" type="checkbox">
+                            </logic:equal>
+                            <logic:notEqual name="column" value="chk">
+                                <label><bean:write name="column"/></label>
+                            </logic:notEqual>
+                        </th>
+                    </logic:iterate>
+                </tr>
+            </thead>
+            <tbody>
+                <logic:iterate id="customer" name="customers">
+                    <tr>
+                        <logic:iterate id="column" name="visibleColumns">
+                            <td>
+                                <logic:equal name="column" value="chk">
+                                    <input class="chkDetail" type="checkbox" value="<bean:write name='customer' property='customerID'/>">
+                                </logic:equal>
+                                <logic:equal name="column" value="customerID">
+                                    <html:link action="/7003.do?action=edit" paramId="customerId" paramName="customer" paramProperty="customerID" styleClass="persist-search">
+                                        <bean:write name="customer" property="customerID"/>
+                                    </html:link>
+                                </logic:equal>
+                                <logic:notEqual name="column" value="chk">
+                                    <logic:equal name="column" value="customerName">
+                                        <bean:write name="customer" property="customerName"/>
+                                    </logic:equal>
+                                    <logic:equal name="column" value="sex">
+                                        <logic:equal name="customer" property="sex" value="1">Female</logic:equal>
+                                        <logic:equal name="customer" property="sex" value="0">Male</logic:equal>
+                                    </logic:equal>
+                                    <logic:equal name="column" value="birthday">
+                                        <bean:write name="customer" property="birthday"/>
+                                    </logic:equal>
+                                    <logic:equal name="column" value="address">
+                                        <bean:write name="customer" property="address"/>
+                                    </logic:equal>
+                                </logic:notEqual>
+                            </td>
+                        </logic:iterate>
+                    </tr>
+                </logic:iterate>
+            </tbody>
+        </table>
+    </div>
+</div>
+
