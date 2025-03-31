@@ -1,0 +1,15 @@
+public class EmailValidator {
+    public static void main(String[] args) {
+        String email = "test@example.com"; // Thay đổi email để kiểm tra
+        if (isValidEmail(email)) {
+            System.out.println("Email hợp lệ!");
+        } else {
+            System.out.println("Email không hợp lệ!");
+        }
+    }
+
+    public static boolean isValidEmail(String email) {
+        String regex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$";
+        return email.matches(regex);
+    }
+}
