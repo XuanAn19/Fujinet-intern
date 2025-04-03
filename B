@@ -1,3 +1,23 @@
+// Lấy danh sách các đối tượng từ Hibernate, không xác định kiểu (danh sách có kiểu List<?>)
+List<?> rawList = criteria.list();  
+
+// Khởi tạo một danh sách mới để chứa các đối tượng Customer sau khi lọc
+List<Customer> result = new ArrayList<>();
+
+// Duyệt qua từng đối tượng trong danh sách rawList (có kiểu List<?>)
+for (Object obj : rawList) {
+    
+    // Kiểm tra xem đối tượng obj có phải là một instance của lớp Customer không
+    if (obj instanceof Customer) {
+        
+        // Nếu obj là một Customer, thực hiện ép kiểu và thêm vào danh sách result
+        result.add((Customer) obj);
+    }
+}
+
+
+
+
 public boolean updateCustomer(CustomerDto customerDto, int userUpdate) {
     Transaction transaction = null;
     Session session = null;
