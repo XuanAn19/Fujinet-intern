@@ -1,3 +1,34 @@
+@Override
+public ActionErrors validate(ActionMapping mapping, HttpServletRequest request) {
+    ActionErrors errors = new ActionErrors();
+
+    if (birthDate != null && !birthDate.trim().isEmpty()) {
+        // Regex: yyyy/MM/dd (năm 4 số, tháng 01–12, ngày 01–31)
+        String datePattern = "^\\d{4}/(0[1-9]|1[0-2])/(0[1-9]|[12]\\d|3[01])$";
+        
+        if (!birthDate.matches(datePattern)) {
+            errors.add("birthDate", new ActionMessage("error.birthDate.invalid"));
+        } else {
+            // Nếu regex đúng, mới parse để kiểm tra ngày không được sau hôm nay
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
+            sdf.setLenient(false);
+            try {
+                Date inputDate = sdf.parse(birthDate);
+                Date today = new Date();
+                if (inputDate.after(today)) {
+                    errors.add("birthDate", new ActionMessage("error.birthDate.future"));
+                }
+            } catch (ParseException e) {
+                errors.add("birthDate", new ActionMessage("error.birthDate.invalid"));
+            }
+        }
+    }
+
+    return errors;
+}
+
+
+
 <html:messages id="msg" property="username">
     <li><bean:write name="msg"/></li>
 </html:messages>
