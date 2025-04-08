@@ -1,0 +1,72 @@
+<html:form action="/T003" method="POST">
+    <input type="hidden" name="action" value="${t003Bean.action}" />
+    <c:if test="${not empty t003Bean.customerId}">
+        <input type="hidden" name="customerId" value="${t003Bean.customerId}" />
+    </c:if>
+
+    Email: <html:text property="txtEmail" />
+    <html:errors property="email" />
+
+    Birthday: <html:text property="txtBirthday" />
+    <html:errors property="birthday" />
+
+    <html:submit value="Submit" />
+</html:form>
+
+
+package fjs.cs;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.struts.action.*;
+
+public class T003Action extends DispatchAction {
+
+    @Override
+    public ActionForward getInputForward(ActionMapping mapping, ActionForm form,
+                                         HttpServletRequest request) {
+        String action = request.getParameter("action");
+        String customerId = request.getParameter("customerId");
+
+        if ("edit".equals(action) && customerId != null && !customerId.isEmpty()) {
+            return new ActionForward("/T003.do?action=edit&customerId=" + customerId, false); // forward to edit
+        } else if ("add".equals(action)) {
+            return new ActionForward("/T003.do?action=add", false); // forward to add
+        }
+
+        // fallback nếu không xác định được action
+        return super.getInputForward(mapping, form, request);
+    }
+
+    public ActionForward add(ActionMapping mapping, ActionForm form,
+                             HttpServletRequest request, HttpServletResponse response)
+            throws Exception {
+        // handle add logic
+        return mapping.findForward("success");
+    }
+
+    public ActionForward edit(ActionMapping mapping, ActionForm form,
+                              HttpServletRequest request, HttpServletResponse response)
+            throws Exception {
+        // handle edit logic
+        return mapping.findForward("success");
+    }
+}
+
+
+
+@Override
+public ActionForward getInputForward(ActionMapping mapping, ActionForm form, HttpServletRequest request) {
+    String action = request.getParameter("action");
+    String customerId = request.getParameter("customerId");
+
+    if ("edit".equals(action) && customerId != null) {
+        return new ActionForward("/T003.do?action=edit&customerId=" + customerId, false); // forward chứ không redirect
+    } else if ("add".equals(action)) {
+        return new ActionForward("/T003.do?action=add", false);
+    }
+
+    // fallback
+    return super.getInputForward(mapping, form, request);
+}
