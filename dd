@@ -1,0 +1,57 @@
+public ActionForward delete(ActionMapping mapping, ActionForm form,
+                            HttpServletRequest request, HttpServletResponse response) throws Exception {
+    T002Form t002Form = (T002Form) form;
+    ResponseData responseData = new ResponseData();
+
+    Integer[] idsArray = t002Form.getSelectedIds();
+
+    if (idsArray != null && idsArray.length > 0) {
+        List<Integer> userIds = Arrays.asList(idsArray);
+
+        if (t002Service.deleteCustomers(userIds)) {
+            request.setAttribute("success", true);
+        } else {
+            request.setAttribute("success", false);
+        }
+    } else {
+        request.setAttribute("success", false);
+    }
+
+    return mapping.findForward("success"); // hoặc forward lại trang danh sách
+}
+
+
+<html:form action="/T002.do?method=delete" method="post">
+    <logic:iterate id="item" name="T002Form" property="userList">
+        <input type="checkbox" name="selectedIds" value="${item.id}" class="chkDetail"/>
+        <!-- các cột khác -->
+    </logic:iterate>
+
+    <input type="submit" value="Delete" />
+</html:form>
+
+
+// T002Form.java
+public class T002Form extends ActionForm {
+    private Integer[] selectedIds;
+
+    public Integer[] getSelectedIds() {
+        return selectedIds;
+    }
+
+    public void setSelectedIds(Integer[] selectedIds) {
+        this.selectedIds = selectedIds;
+    }
+}
+
+
+<action path="/T002"
+        type="fjs.cs.T002Action"
+        name="T002Form"
+        scope="request"
+        parameter="method"
+        validate="false"
+        input="/WEB-INF/jsp/T002.jsp">
+    <forward name="success" path="/WEB-INF/jsp/T002.jsp"/>
+</action>
+
