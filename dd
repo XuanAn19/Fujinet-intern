@@ -55,3 +55,134 @@ public class T002Form extends ActionForm {
     <forward name="success" path="/WEB-INF/jsp/T002.jsp"/>
 </action>
 
+
+
+<html:form action="/T002" method="post">
+  <table border="1" width="100%">
+    <thead>
+      <tr>
+        <th><input type="checkbox" onclick="toggleAll(this)" /></th>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Sex</th>
+        <th>Birthday</th>
+        <th>Email</th>
+        <th>Address</th>
+      </tr>
+    </thead>
+    <tbody>
+      <logic:iterate id="customer" name="T002Form" property="customerList">
+        <tr>
+          <td>
+            <html:multibox property="selectedCustomerIDs">
+              <bean:write name="customer" property="id" />
+            </html:multibox>
+          </td>
+          <td><bean:write name="customer" property="id" /></td>
+          <td><bean:write name="customer" property="name" /></td>
+          <td><bean:write name="customer" property="sex" /></td>
+          <td><bean:write name="customer" property="birthday" /></td>
+          <td><bean:write name="customer" property="email" /></td>
+          <td><bean:write name="customer" property="address" /></td>
+        </tr>
+      </logic:iterate>
+    </tbody>
+  </table>
+
+  <br/>
+
+  <html:submit property="action" value="Search" />
+  <html:submit property="action" value="Delete" onclick="return confirmDelete();" />
+
+</html:form>
+
+<script>
+  function toggleAll(source) {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][name="selectedCustomerIDs"]');
+    for (let i = 0; i < checkboxes.length; i++) {
+      checkboxes[i].checked = source.checked;
+    }
+  }
+
+  function confirmDelete() {
+    return confirm("Are you sure you want to delete the selected customers?");
+  }
+</script>
+
+
+
+<logic:present name="T002Form" property="customerList">
+  <logic:greaterThan name="T002Form" property="customerList.size" value="0">
+    <html:form action="/T002" method="post">
+      <table border="1" width="100%">
+        <thead>
+          <tr>
+            <th><input type="checkbox" onclick="toggleAll(this)" /></th>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Sex</th>
+            <th>Birthday</th>
+            <th>Email</th>
+            <th>Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          <logic:iterate id="customer" name="T002Form" property="customerList">
+            <tr>
+              <td>
+                <input type="checkbox" name="selectedCustomerIDs" value="<bean:write name='customer' property='id'/>" />
+              </td>
+              <td><bean:write name="customer" property="id" /></td>
+              <td><bean:write name="customer" property="name" /></td>
+              <td><bean:write name="customer" property="sex" /></td>
+              <td><bean:write name="customer" property="birthday" /></td>
+              <td><bean:write name="customer" property="email" /></td>
+              <td><bean:write name="customer" property="address" /></td>
+            </tr>
+          </logic:iterate>
+        </tbody>
+      </table>
+
+      <br/>
+
+      <html:submit property="action" value="Search" />
+      <input type="submit" name="action" value="Delete" onclick="return confirmDelete();" />
+
+    </html:form>
+  </logic:greaterThan>
+</logic:present>
+
+<logic:notPresent name="T002Form" property="customerList">
+  <p>Không có dữ liệu khách hàng.</p>
+  <html:form action="/T002" method="post">
+    <html:submit property="action" value="Search" />
+    <input type="submit" value="Delete" disabled />
+  </html:form>
+</logic:notPresent>
+
+<logic:present name="T002Form" property="customerList">
+  <logic:equal name="T002Form" property="customerList.size" value="0">
+    <p>Không có dữ liệu khách hàng.</p>
+    <html:form action="/T002" method="post">
+      <html:submit property="action" value="Search" />
+      <input type="submit" value="Delete" disabled />
+    </html:form>
+  </logic:equal>
+</logic:present>
+
+<script>
+  function toggleAll(source) {
+    const checkboxes = document.querySelectorAll('input[name="selectedCustomerIDs"]');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+  }
+
+  function confirmDelete() {
+    const selected = document.querySelectorAll('input[name="selectedCustomerIDs"]:checked');
+    if (selected.length === 0) {
+      alert("Vui lòng chọn khách hàng để xóa.");
+      return false;
+    }
+    return confirm("Bạn có chắc chắn muốn xóa những khách hàng đã chọn?");
+  }
+</script>
+
